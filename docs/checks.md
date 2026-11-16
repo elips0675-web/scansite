@@ -25,11 +25,18 @@
 | PageSpeed Insights | **API** | `external.pagespeed` | оценка < 50 → `fail`, 50–89 → `warn` | `:155-156`, `:186-187` |
 | Mozilla Observatory | **API** | `external.observatory` | < 50 → `fail`, 50–89 → `warn` | `:206-208`, `:155` |
 | SSL Labs | **API**, асинхронно | `external.ssllabs` | grade B и ниже → `warn` | `:211-213` |
+| DNS: A, AAAA, NS, MX, TXT | **код**: `node:dns/promises` | `dns{}` | нет AAAA → `warn`; резолвер недоступен → `unknown` | нет в источнике (расширение) |
+| SPF и DMARC | **код**: TXT и `_dmarc.<host>` | `dns.spf`, `dns.dmarc` | нет на апексе → `fail`; нет на поддомене → `unknown` | нет в источнике (расширение) |
+| HTTP/2 по ALPN | **код**: `tls.connect` с `ALPNProtocols` | `tls.alpn` | `h2` → `ok`; `http/1.1` → `warn` | нет в источнике (расширение) |
 
 Все проверки этой таблицы реализованы в `scripts/audit-collect.mjs` (16.11.2026):
 `node scripts/audit-collect.mjs --url <адрес>` (по умолчанию пишет
 `audit-report/audit_data.json`). Чего нет в
 коде — того нет и в отчёте: таблица и скрипт обновляются одной правкой.
+
+DNS-строки добавлены 16.11.2026 и проверены только до ветки `unknown`: на машине
+разработки `node:dns` получает `ECONNREFUSED` (UDP 53 закрыт), поэтому `ok`/`fail`
+для SPF и DMARC ещё не наблюдались живьём (`Что доделать.txt`, AUD-16).
 
 ### 1.1 Браузерный прогон (вручную, вне CI)
 

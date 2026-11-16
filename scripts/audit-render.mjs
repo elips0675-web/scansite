@@ -86,6 +86,7 @@ const tlsBlock = tls.error
   : `<table>
     <tbody>
       <tr><th>Протокол</th><td>${cell(tls.protocol)}</td><td>${statusOf('tls_protocol')}</td></tr>
+      <tr><th>HTTP/2 (ALPN)</th><td>${cell(tls.alpn)}</td><td>${statusOf('alpn')}</td></tr>
       <tr><th>Издатель</th><td>${cell(tls.issuer)}</td><td></td></tr>
       <tr><th>Домен в сертификате</th><td>${cell(tls.subject)}</td><td></td></tr>
       <tr><th>Действует</th><td>${cell(tls.not_before)} → ${cell(tls.not_after)}</td><td></td></tr>
@@ -94,8 +95,22 @@ const tlsBlock = tls.error
     </tbody>
   </table>`;
 
-const speedBlock = `<table>
+const dns = site.dns || {};
+const dnsBlock = dns.error
+  ? `<p class="note">DNS-проверки не выполнены: ${esc(dns.error)}. Статус — <code>unknown</code>, а не «всё хорошо».</p>`
+  : `<table>
     <tbody>
+      <tr><th>A</th><td>${cell((dns.a || []).slice(0, 3).join(', '))}</td><td>${statusOf('dns_a')}</td></tr>
+      <tr><th>AAAA (IPv6)</th><td>${cell((dns.aaaa || []).slice(0, 3).join(', '))}</td><td>${statusOf('ipv6')}</td></tr>
+      <tr><th>MX</th><td>${cell((dns.mx || []).slice(0, 3).join('; '))}</td><td>${statusOf('mx')}</td></tr>
+      <tr><th>NS</th><td>${cell((dns.ns || []).slice(0, 3).join(', '))}</td><td></td></tr>
+      <tr><th>SPF</th><td>${cell(dns.spf)}</td><td>${statusOf('spf')}</td></tr>
+      <tr><th>DMARC</th><td>${cell(dns.dmarc)}</td><td>${statusOf('dmarc')}</td></tr>
+    </tbody>
+  </table>
+  <p class="note">DNS и почта проверяются на самом имени, без обхода апекса: для поддомена отсутствие SPF/DMARC — <code>unknown</code>, а не <code>fail</code>. DNSSEC не проверяется: Node не отдаёт AD-bit. Запросов к сайту эта проверка не добавляет.</p>`;
+
+const speedBlock = `<table>    <tbody>
       <tr><th>TTFB</th>${num(site.timing?.ttfb_ms, ' мс')}<td>${statusOf('ttfb')}</td></tr>
       <tr><th>Полный ответ</th>${num(site.timing?.total_ms, ' мс')}<td></td></tr>
       <tr><th>Вес HTML</th>${num(site.content?.bytes ? Math.round(site.content.bytes / 1024) : null, ' КБ')}<td>${statusOf('html_weight')}</td></tr>
@@ -183,6 +198,7 @@ const values = {
   top_issues: top,
   headers_table: headersTable,
   tls_block: tlsBlock,
+  dns_block: dnsBlock,
   speed_block: speedBlock,
   browser_block: browserBlock,
   tech_block: techBlock,

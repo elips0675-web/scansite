@@ -45,11 +45,11 @@ Python 3.14 на машине есть, но **не используется**: 
 
 ## 4. Структура: факт и план
 
-Факт на 16.11.2026 (Stage 3): `docs/` (11 файлов), `test/` (2 файла),
+Факт на 16.11.2026 (Stage 4): `docs/` (11 файлов), `test/` (2 файла),
 `tools/` (1 файл), `scripts/` (2 файла), `templates/` (1 файл),
-`README.md`, `AGENTS.md`, `project-context.md`, `CHANGELOG.md`,
-`Что доделать.txt`, `Что сделано.txt`, `package.json`, `.gitignore`,
-`.gitattributes` и один входной HTML.
+`.opencode/commands/` (1 файл), `README.md`, `AGENTS.md`, `project-context.md`,
+`CHANGELOG.md`, `Что доделать.txt`, `Что сделано.txt`, `package.json`,
+`.gitignore`, `.gitattributes` и один входной HTML.
 
 План — появляется по пунктам бэклога:
 
@@ -61,6 +61,7 @@ scripts/audit-render.mjs     audit_data.json + шаблон -> HTML          с�
 scripts/audit-summary.mjs    раздел «Выводы» через модель              AUD-04
 templates/audit-report.html  шаблон с плейсхолдерами                   сделано
 tools/check-docs.mjs         гейт документации                         сделано
+.opencode/commands/audit.md  команда /audit: сбор + рендер              сделано
 audit-report/                 артефакты прогона (в git не идут):
                              audit_data.json, browser_data.json, audit-report.html
 ```
@@ -69,7 +70,7 @@ audit-report/                 артефакты прогона (в git не и�
 
 | Точка | Как |
 |---|---|
-| OpenCode | `.opencode/commands/audit.md` — команда `/audit <url>` (AUD-09) |
+| OpenCode | `.opencode/commands/audit.md` — команда `/audit <url>` (сделано 16.11.2026) |
 | Ollama | `http://localhost:11434`, `qwen2.5-coder:14b` q4_K_M, ctx 12288 (`docs/local-model.md`) |
 | Cline (VS Code) | альтернатива для правки скриптов; промпт дороже по контексту |
 | Внешние API | PageSpeed Insights, Mozilla Observatory, SSL Labs — ключи только из `.env` (AUD-06) |

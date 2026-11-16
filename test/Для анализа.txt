@@ -2,7 +2,7 @@
 Проект: сканер сайтов (пассивный аудит + HTML-отчёт)
 Каталог: D:\OpenCode сканер сайтов
 Дата среза: 16.11.2026
-Состояние: Stage 3 — сбор, рендер, первый живой прогон, код есть.
+Состояние: Stage 4 — сбор (включая DNS и ALPN), рендер, команда /audit.
 Репозиторий: https://github.com/elips0675-web/scansite (ветка main).
 
 Файл самодостаточен: если модели не нужен конкретный файл, читать другие не
@@ -22,11 +22,14 @@ self-contained HTML-файл с приоритетами «что чинить �
   - scripts/audit-collect.mjs — сбор фактов -> audit-report/audit_data.json;
   - templates/audit-report.html + scripts/audit-render.mjs — отчёт из JSON;
   - tools/check-docs.mjs — гейт документации;
+  - .opencode/commands/audit.md — команда /audit (сбор + рендер, без активного
+    сканирования и без внешних API);
   - входной материал — предложение внешней модели (Qwen), 14 453 байта, 268 строк.
 
-Первый живой прогон 16.11.2026: https://elvstudio.vercel.app/kit/ — 15 находок
-(14 ok, 1 fail: нет Content-Security-Policy), отчёт 12 КБ, ноль внешних запросов,
-TTFB 316 мс, HTML 90 032 байта (brotli на проводе ~21 КБ).
+Живой прогон 16.11.2026: https://elvstudio.vercel.app/kit/ — 17 находок
+(15 ok, 1 fail: нет Content-Security-Policy, 1 unknown: DNS-резолвер недоступен),
+ALPN h2, отчёт 12 КБ, ноль внешних запросов, TTFB 316 мс, HTML 90 032 байта
+(brotli на проводе ~21 КБ).
 
 Чего проект НЕ делает (зафиксировано): активное сканирование (SQLi/XSS),
 нагрузочные тесты, краулинг всего сайта, веб-интерфейс, хранение истории в БД.
@@ -82,6 +85,7 @@ curl падают.
   scripts/audit-summary.mjs  раздел «Выводы» через модель            (AUD-04: не начат)
   templates/audit-report.html шаблон с плейсхолдерами {{...}}        сделано
   tools/check-docs.mjs       гейт документации                       сделано
+  .opencode/commands/audit.md команда /audit: сбор + рендер          сделано
   audit-report/              артефакты прогона, в git не идут
 
 Контракт audit_data.json (верхний уровень):
@@ -89,8 +93,10 @@ curl падают.
   sites[] — по элементу на адрес, порядок совпадает с входом
 
 Элемент sites[] (фактические поля, не план):
-  url, final_url, status, error, redirects[], headers{}, tls{protocol, issuer,
-  subject, not_before, not_after, days_left, san[]}, timing{ttfb_ms, total_ms},
+  url, final_url, status, error, redirects[], headers{}, tls{protocol, alpn,
+  issuer, subject, not_before, not_after, days_left, san[]},
+  dns{a[], aaaa[], mx[], ns[], txt[], spf, dmarc, codes{}, error},
+  timing{ttfb_ms, total_ms},
   content{bytes, title, meta_description, canonical, lang, h1_count, h1[],
   generator, inline_style_bytes},
   assets{scripts, styles, images, inline_scripts, svg, external_hosts[],
@@ -109,6 +115,9 @@ curl падают.
   - findings[].evidence содержит конкретику (имя заголовка, значение, мс);
   - level только: ok | warn | fail | unknown;
   - unknown никогда не считается ok и в отчёте рисуется серым.
+  - почта (SPF/DMARC/MX) на поддомене — unknown, а не fail: записи обычно живут на
+    апексе, и чужой домен нельзя записывать в вину сайту; резолвер недоступен —
+    тоже unknown (в evidence код ошибки), а не молчаливый ok.
 
 Отказы (не роняют прогон), проверено 16.11.2026 на
 https://nonexistent-domain-abc123xyz.invalid: error "dns", status null, exit 0.
@@ -174,10 +183,10 @@ P0
 P1
   AUD-06  внешние API (PageSpeed, Observatory, SSL Labs), ключи из .env
   AUD-07  вежливость: подтвердить 403/429 и паузы, вывести User-Agent в лог
-  AUD-09  .opencode/commands/audit.md — команда /audit под Windows
   AUD-15  находки без новых запросов: кэш, версия в Server, mixed content,
           alt/label, OG/Twitter, favicon, noindex, длина title/description
-  AUD-16  DNS и почта: A/AAAA/MX/NS/TXT, SPF, DMARC, IPv6, ALPN (h2)
+  AUD-16  подтвердить ветки ok/fail для SPF и DMARC (код готов, здесь UDP 53
+          закрыт — ECONNREFUSED)
 
 P2
   AUD-10  фикстуры и --self-test без сети
@@ -186,8 +195,8 @@ P2
 
 Полные формулировки с доказательствами — «Что доделать.txt» в корне.
 Закрыты 16.11.2026: AUD-01 (сбор), AUD-02 (сигнатуры), AUD-03 (рендер),
-AUD-08 (репозиторий), AUD-11 (этот срез), AUD-12 (команды в README),
-AUD-13 (.gitattributes).
+AUD-08 (репозиторий), AUD-09 (команда /audit), AUD-11 (этот срез),
+AUD-12 (команды в README), AUD-13 (.gitattributes).
 
 ================================================================================
 8. КАРТА КАТАЛОГА
@@ -212,9 +221,10 @@ AUD-13 (.gitattributes).
   test/README.md             как пользоваться этим срезом
   test/Для анализа.txt       этот файл
   tools/check-docs.mjs       гейт документации
-  scripts/audit-collect.mjs  сбор фактов (fetch + node:tls), ноль зависимостей
+  scripts/audit-collect.mjs  сбор фактов (fetch + node:tls + node:dns), ноль зависимостей
   scripts/audit-render.mjs   рендер отчёта, проверки на {{...}} и внешние ресурсы
   templates/audit-report.html шаблон отчёта с плейсхолдерами {{...}}
+  .opencode/commands/audit.md команда /audit: два шага, запрет активных проверок
   audit-report/              артефакты прогона: audit_data.json,
                              browser_data.json, audit-report.html (в git не идут)
   .gitattributes             * text=auto eol=lf, бинарные типы
@@ -239,8 +249,8 @@ AUD-13 (.gitattributes).
 7. Гейт check:docs: какие проверки он не делает, хотя должен?
 8. Браузерный прогон: что он даёт сверх fetch и где начинается обман — цифры
    Lighthouse без эмуляции устройства легко выдать за PageSpeed.
-9. Первый живой прогон дал 14 ok и 1 fail (нет CSP) на статическом сайте. Какие
-   из этих ok получены слишком дёшево и что они не доказывают?
+9. Прогон дал 15 ok, 1 fail (нет CSP) и 1 unknown (DNS) на статическом сайте.
+   Какие из этих ok получены слишком дёшево и что они не доказывают?
 
 ================================================================================
 КОНЕЦ СРЕЗА

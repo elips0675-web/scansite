@@ -4,13 +4,15 @@
 проверяемые факты (заголовки, TLS, скорость, периметр SEO) в `audit_data.json`
 и рендерит из него один самодостаточный `audit-report.html`.
 
-**Состояние: Stage 3 — сбор, рендер и первый живой прогон**
+**Состояние: Stage 4 — сбор (заголовки, TLS, DNS, скорость, периметр SEO),
+рендер и команда `/audit`**
 (https://github.com/elips0675-web/scansite). Код есть: `scripts/audit-collect.mjs`
 (все проверки `docs/checks.md` §1, ноль зависимостей), `templates/audit-report.html`
 и `scripts/audit-render.mjs` (детерминированный рендер, проверка на незаполненные
-плейсхолдеры и внешние ресурсы), гейт `tools/check-docs.mjs`. Первый реальный
-прогон — `https://elvstudio.vercel.app/kit/`: 15 находок (14 `ok`, 1 `fail` —
-нет `Content-Security-Policy`), отчёт 12 КБ, ноль внешних запросов.
+плейсхолдеры и внешние ресурсы), `tools/check-docs.mjs`,
+`.opencode/commands/audit.md`. Реальный прогон — `https://elvstudio.vercel.app/kit/`:
+17 находок (15 `ok`, 1 `fail` — нет `Content-Security-Policy`, 1 `unknown` — DNS
+недоступен на машине разработки), ALPN `h2`, отчёт 12 КБ, ноль внешних запросов.
 
 ## Зачем
 
@@ -63,6 +65,10 @@ node scripts/audit-render.mjs
 `browser_data.json`, `audit-report.html`), в git не попадает (`.gitignore`).
 Список адресов `--sites sites.json` поддержан коллектором, но сам файл и
 сравнение прогонов — AUD-05.
+
+В OpenCode та же пара шагов доступна как команда `/audit <адрес>`
+(`.opencode/commands/audit.md`): она запрещает активное сканирование и внешние
+API и требует показать счётчики и путь к отчёту.
 
 ## Обвязка машины (проверено 16.11.2026)
 

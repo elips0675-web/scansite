@@ -6,6 +6,41 @@
 
 ---
 
+(Stage 4 — 16.11.2026) — **DNS, почта и ALPN в сборе; команда `/audit`: AUD-09 закрыт, AUD-16 сужен до проверки ветвей.**
+
+- `scripts/audit-collect.mjs`: импорт `node:dns/promises` (`:3`), функция
+  `readDns` (`:91-140`) — A, AAAA, MX, NS, TXT, SPF из TXT, DMARC из
+  `_dmarc.<host>`, коды ошибок по каждой ветке в `dns.codes`, отказ резолвера
+  (`ECONNREFUSED`/`ETIMEOUT`/`ESERVFAIL`/`ECANCELLED`) → `dns.error` и находка
+  `unknown`, а не падение; `tls.connect` теперь с `ALPNProtocols: ['h2',
+  'http/1.1']` и полем `tls.alpn`; находки `dns_a`, `ipv6`, `mx`, `spf`, `dmarc`,
+  `alpn` — почта на поддомене `unknown`, на апексе `fail`.
+- `templates/audit-report.html` + `scripts/audit-render.mjs`: подраздел
+  «3.1 DNS и почта» (A, AAAA, MX, NS, SPF, DMARC со статусами) и строка
+  «HTTP/2 (ALPN)» в таблице TLS; при недоступном резолвере выводится пояснение
+  и статус `unknown`.
+- Проверено живьём: `elvstudio.vercel.app` → `tls.alpn: "h2"`, находка `alpn`
+  `ok`; 17 находок (15 `ok`, 1 `fail` — нет CSP, 1 `unknown` — DNS), отчёт 12 КБ,
+  `node --check` — 0, рендер exit 0.
+- `AUD-09` закрыт: `.opencode/commands/audit.md` — `description`, `$ARGUMENTS`,
+  два шага (`audit-collect.mjs` → `audit-render.mjs`), прямой запрет активного
+  сканирования, внешних API и ручной правки HTML; формат команд сверен с
+  документацией OpenCode V2 (`https://opencode.ai/v2/docs/commands`).
+- `README.md` — абзац про `/audit`; `docs/checks.md` §1 — три строки (DNS, SPF/
+  DMARC, ALPN) с основанием «нет в источнике (расширение)»; `docs/architecture.md`
+  §3 — поле `dns` и `tls.alpn`; `project-context.md` §5 — интеграция «сделано».
+
+**Что не проверено:**
+
+- Ветви `ok` и `fail` для SPF/DMARC живьём не наблюдались: на этой машине UDP 53
+  закрыт, все шесть запросов возвращают `ECONNREFUSED` (проверено
+  `node -e` и `dns.setServers(['1.1.1.1'])`), отчёт честно показывает `unknown`.
+  Поэтому AUD-16 **не закрыт**, а сужен до прогона на машине с рабочим DNS.
+- Сам вызов `/audit` в TUI не выполнялся (команда запускается пользователем);
+  проверены файл, формат и тексты шагов.
+
+---
+
 (Stage 3.1 — 16.11.2026) — **Бэклог пополнен: AUD-15, AUD-16, AUD-17.**
 
 - AUD-15: находки из уже скачанного — `cache-control`, `vary` при сжатии,

@@ -71,7 +71,8 @@ OpenCode, поэтому прогон идёт в живой сессии аге
 | `error` | строка или `null` | причина, если прогон не удался |
 | `redirects` | массив | цепочка `{from, to, status}` |
 | `headers` | объект | только нужные заголовки, в нижнем регистре |
-| `tls` | объект или `null` | `protocol`, `issuer`, `not_before`, `not_after`, `days_left`, `san[]` |
+| `tls` | объект или `null` | `protocol`, `alpn`, `issuer`, `not_before`, `not_after`, `days_left`, `san[]` |
+| `dns` | объект | `a[]`, `aaaa[]`, `mx[]`, `ns[]`, `txt[]`, `spf`, `dmarc`, `codes{}`, `error` |
 | `timing` | объект | `ttfb_ms`, `total_ms` |
 | `content` | объект | `bytes`, `title`, `meta_description`, `canonical`, `lang`, `h1_count`, `h1[]`, `generator`, `inline_style_bytes` |
 | `assets` | объект | `scripts`, `styles`, `images`, `inline_scripts`, `svg`, `external_hosts[]`, `third_party[]` |

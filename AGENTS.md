@@ -10,10 +10,10 @@
 адресов он собирает пассивные факты о сайте в `audit_data.json` и рендерит
 `audit-report.html`.
 
-Состояние: Stage 3 — сбор, рендер и первый живой прогон
+Состояние: Stage 4 — сбор (включая DNS, почту и ALPN), рендер, команда `/audit`
 (`https://github.com/elips0675-web/scansite`). Код: `scripts/audit-collect.mjs`,
-`scripts/audit-render.mjs`, `templates/audit-report.html`. Артефакты — в
-`audit-report/`, в git не идут.
+`scripts/audit-render.mjs`, `templates/audit-report.html`,
+`.opencode/commands/audit.md`. Артефакты — в `audit-report/`, в git не идут.
 
 ### Границы
 
@@ -134,7 +134,7 @@ node scripts/audit-render.mjs              # → audit-report/audit-report.html
 
 ## 9. Карта кода
 
-Код есть с 16.11.2026 (Stage 3). Карта:
+Код есть с 16.11.2026 (Stage 4). Карта:
 
 | Что | Файл | Пункт | Состояние |
 |---|---|---|---|
@@ -144,7 +144,8 @@ node scripts/audit-render.mjs              # → audit-report/audit-report.html
 | выводы моделью | `scripts/audit-summary.mjs` | AUD-04 | не начат |
 | список адресов | `sites.json` | AUD-05 | `--sites` читается, файла и диффа нет |
 | внешние API | `scripts/audit-external.mjs` | AUD-06 | не начат |
-| команда для OpenCode | `.opencode/commands/audit.md` | AUD-09 | не начата |
+| команда для OpenCode | `.opencode/commands/audit.md` | AUD-09 | сделано |
+| DNS, почта, ALPN | `scripts/audit-collect.mjs` (`readDns`, `tls.alpn`) | AUD-16 | код есть, ветви `ok`/`fail` не подтверждены |
 | гейт документации | `tools/check-docs.mjs` | Stage 0 | сделано |
 
 Правило правки: меняешь поле в `audit_data.json` — одной правкой обновляешь

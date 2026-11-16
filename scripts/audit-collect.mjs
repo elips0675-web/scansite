@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { resolve4, resolve6, resolveMx, resolveNs, resolveTxt } from 'node:dns/promises';
 import tls from 'node:tls';
 
 const UA = 'site-audit/0.1 (+https://github.com/elips0675-web/scansite)';
@@ -64,11 +65,18 @@ const HEADER_NAMES = [
 const readTls = (hostname) =>
   new Promise((resolve) => {
     const socket = tls.connect(
-      { host: hostname, servername: hostname, port: 443, timeout: TIMEOUT_MS },
+      {
+        host: hostname,
+        servername: hostname,
+        port: 443,
+        timeout: TIMEOUT_MS,
+        ALPNProtocols: ['h2', 'http/1.1'],
+      },
       () => {
         const cert = socket.getPeerCertificate();
         resolve({
           protocol: socket.getProtocol(),
+          alpn: socket.alpnProtocol || null,
           issuer: cert?.issuer?.O || cert?.issuer?.CN || null,
           subject: cert?.subject?.CN || null,
           not_before: cert?.valid_from || null,
@@ -87,6 +95,46 @@ const readTls = (hostname) =>
       resolve({ error: 'timeout' });
     });
   });
+
+const readDns = async (hostname) => {
+  const codes = {};
+  const safe = async (name, query) => {
+    try {
+      return await query();
+    } catch (error) {
+      codes[name] = error.code || 'ERR';
+      return null;
+    }
+  };
+
+  const [a, aaaa, mx, ns, txt, dmarcTxt] = await Promise.all([
+    safe('a', () => resolve4(hostname)),
+    safe('aaaa', () => resolve6(hostname)),
+    safe('mx', () => resolveMx(hostname)),
+    safe('ns', () => resolveNs(hostname)),
+    safe('txt', () => resolveTxt(hostname)),
+    safe('dmarc', () => resolveTxt(`_dmarc.${hostname}`)),
+  ]);
+
+  const flatten = (records) => (records || []).map((chunks) => chunks.join(''));
+  const txtFlat = flatten(txt);
+  const dmarcFlat = flatten(dmarcTxt);
+  const resolverDown = [codes.a, codes.aaaa].some((code) =>
+    ['ECONNREFUSED', 'ETIMEOUT', 'ESERVFAIL', 'ECANCELLED'].includes(code),
+  );
+
+  return {
+    a: a || [],
+    aaaa: aaaa || [],
+    mx: (mx || []).map((record) => `${record.priority} ${record.exchange}`),
+    ns: ns || [],
+    txt: txtFlat,
+    spf: txtFlat.find((value) => /^v=spf1/i.test(value)) || null,
+    dmarc: dmarcFlat.find((value) => /^v=DMARC1/i.test(value)) || null,
+    codes,
+    error: resolverDown ? `resolver: ${codes.a || codes.aaaa}` : null,
+  };
+};
 
 const parseHtml = (body, base) => {
   const title = (body.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [, ''])[1].trim();
@@ -215,6 +263,17 @@ const auditSite = async (url) => {
       jsonld_types: [],
     },
     tech: [],
+    dns: {
+      a: [],
+      aaaa: [],
+      mx: [],
+      ns: [],
+      txt: [],
+      spf: null,
+      dmarc: null,
+      codes: {},
+      error: null,
+    },
     findings: [],
   };
 
@@ -284,6 +343,7 @@ const auditSite = async (url) => {
   if (new URL(current).protocol === 'https:') {
     result.tls = await readTls(host);
   }
+  result.dns = await readDns(host);
 
   const parsed = parseHtml(body, current);
   result.content = {
@@ -374,6 +434,14 @@ const auditSite = async (url) => {
         days === null ? 'Срок сертификата не прочитан' : `До истечения ${days} дней (издатель: ${result.tls.issuer || '—'})`,
         `${result.tls.not_before || '—'} → ${result.tls.not_after || '—'}`,
       ),
+    );
+    const alpn = result.tls.alpn;
+    result.findings.push(
+      alpn === 'h2'
+        ? finding('alpn', 'ok', 'HTTP/2', 'ALPN согласовал h2', 'h2')
+        : alpn
+          ? finding('alpn', 'warn', 'HTTP/2', `ALPN согласовал ${alpn}`, alpn)
+          : finding('alpn', 'unknown', 'HTTP/2', 'ALPN не согласован', 'alpn: —'),
     );
   } else {
     result.findings.push(
@@ -485,6 +553,46 @@ const auditSite = async (url) => {
       ? finding('jsonld', 'ok', 'Микроразметка', `JSON-LD: ${result.seo.jsonld_types.join(', ') || 'без @type'}`, 'application/ld+json')
       : finding('jsonld', 'warn', 'Микроразметка', 'JSON-LD не найден или повреждён', 'application/ld+json: —'),
   );
+
+  const likelySubdomain = host.split('.').length > 2;
+  const mailLevel = (present) => (present ? 'ok' : likelySubdomain ? 'unknown' : 'fail');
+  const mailNote = likelySubdomain ? ' (поддомен: записи обычно на апексе)' : '';
+
+  if (result.dns.error) {
+    result.findings.push(
+      finding('dns', 'unknown', 'DNS', 'DNS-запросы не выполнены: резолвер недоступен', result.dns.error),
+    );
+  } else {
+    result.findings.push(
+      result.dns.a.length > 0
+        ? finding('dns_a', 'ok', 'DNS', `A-записи: ${result.dns.a.length}`, result.dns.a.join(', '))
+        : finding('dns_a', 'unknown', 'DNS', 'A-записи не найдены напрямую (возможен CNAME)', 'A: —'),
+      result.dns.aaaa.length > 0
+        ? finding('ipv6', 'ok', 'IPv6', `AAAA-записи: ${result.dns.aaaa.length}`, result.dns.aaaa.join(', '))
+        : finding('ipv6', 'warn', 'IPv6', 'Нет AAAA-записи: сайт недоступен по IPv6', 'AAAA: —'),
+      finding(
+        'mx',
+        mailLevel(result.dns.mx.length > 0),
+        'Почта',
+        result.dns.mx.length ? `MX-записей: ${result.dns.mx.length}` : `MX-записи нет${mailNote}`,
+        result.dns.mx.length ? result.dns.mx.join('; ') : 'MX: —',
+      ),
+      finding(
+        'spf',
+        mailLevel(Boolean(result.dns.spf)),
+        'Почта',
+        result.dns.spf ? 'SPF задан' : `SPF не найден${mailNote}`,
+        result.dns.spf || 'TXT: —',
+      ),
+      finding(
+        'dmarc',
+        mailLevel(Boolean(result.dns.dmarc)),
+        'Почта',
+        result.dns.dmarc ? 'DMARC задан' : `DMARC не найден${mailNote}`,
+        result.dns.dmarc || '_dmarc TXT: —',
+      ),
+    );
+  }
 
   return result;
 };
