@@ -45,8 +45,8 @@ Python 3.14 на машине есть, но **не используется**: 
 
 ## 4. Структура: факт и план
 
-Факт на 16.11.2026 (Stage 5): `docs/` (11 файлов), `test/` (2 файла),
-`tools/` (1 файл), `scripts/` (3 файла), `templates/` (1 файл),
+Факт на 16.11.2026 (Stage 6): `docs/` (11 файлов), `test/` (2 файла),
+`tools/` (1 файл), `scripts/` (4 файла), `templates/` (1 файл),
 `.opencode/commands/` (1 файл), `README.md`, `AGENTS.md`, `project-context.md`,
 `CHANGELOG.md`, `Что доделать.txt`, `Что сделано.txt`, `package.json`,
 `.gitignore`, `.gitattributes` и один входной HTML.
@@ -56,6 +56,7 @@ Python 3.14 на машине есть, но **не используется**: 
 ```
 sites.json                   вход: список адресов + allowlist          AUD-05
 scripts/audit-collect.mjs    сбор фактов -> audit_data.json            сделано
+scripts/mail-policy.mjs      разбор SPF/DMARC без сети (чистые функции) сделано
 scripts/audit-external.mjs   PageSpeed / Observatory / SSL Labs        AUD-06
 scripts/audit-render.mjs     audit_data.json + шаблон -> HTML          сделано
 scripts/audit-summary.mjs    audit_data.json -> conclusions.json (Ollama)  сделано
@@ -63,7 +64,8 @@ templates/audit-report.html  шаблон с плейсхолдерами       
 tools/check-docs.mjs         гейт документации                         сделано
 .opencode/commands/audit.md  команда /audit: сбор + рендер              сделано
 audit-report/                 артефакты прогона (в git не идут):
-                             audit_data.json, browser_data.json, audit-report.html
+                             audit_data.json, browser_data.json,
+                             conclusions.json, audit-report.html
 ```
 
 ## 5. Точки интеграции

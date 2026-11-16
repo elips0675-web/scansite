@@ -3,6 +3,41 @@
 Версии **инструмента**, не сайтов, которые он проверяет. Формат — Keep a
 Changelog, версии — SemVer.
 
+## [0.5.0] — 16.11.2026
+
+### Added
+
+- Перенос проверок из `D:\nlbopt-main` и `D:\October CMS`: идеи и пороги взяты
+  оттуда, код переписан на встроенные модули Node.
+- `scripts/mail-policy.mjs` — чистые функции разбора SPF (`-all` → `ok`,
+  `~all` → `warn`, `+all`/`?all` → `fail`, нет `all` → `warn`) и DMARC
+  (`p=reject` → `ok`, `p=quarantine` → `warn`, `p=none` → `fail`).
+- `readDns` читает CAA (`resolveCaa`) и TXT `_mta-sts.<host>`, считает число
+  SPF-записей; находки `caa`, `mta_sts`, `spf_multiple`.
+- Статические находки по уже скачанному HTML: `lang`, `viewport` (нет →
+  `fail`), OG и `twitter:card`, favicon, `meta robots`, длина `title` и
+  `description`, `alt`, `width/height`, `loading="lazy"`, подписи полей формы,
+  mixed content, версия в `server`/`x-powered-by`, `Cache-Control` и сжатие
+  с `Vary: Accept-Encoding`.
+- SEO-периметр: директива `Sitemap:` в `robots.txt`, тип и XML-пролог
+  `sitemap.xml`, проба несуществующего пути (мягкая 404), редирект
+  `http://` → `https://`.
+- Поле `requests` — сколько HTTP-запросов сделал сбор по адресу (5 на живой
+  прогон, потолок `docs/scope.md` §3).
+- `docs/checks.md` §1 — 15 новых строк с основанием (RFC 7208, RFC 7489,
+  RFC 8659, RFC 8461, WCAG) и ссылками на источники идей.
+- `docs/qa-checklist.md` — этап 6: 18 ожидаемых уровней на локальной фикстуре.
+
+### Changed
+
+- `docs/architecture.md` §3 — новые поля `requests`, `dns.caa`, `dns.mta_sts`,
+  `dns.spf_count`, `content.*`, `seo.*`; §4 — ветки «порт 80 закрыт» и «проба
+  404 вернула 200».
+- `docs/report-format.md` §1 — разделы 3.1, 4, 5 и 6 описывают новые строки.
+- `templates/audit-report.html` не менялся: находки живут в существующих
+  разделах, отчёт остаётся восьмираздельным.
+- Версия инструмента 0.4.0 → 0.5.0.
+
 ## [0.4.0] — 16.11.2026
 
 ### Added

@@ -8,14 +8,16 @@
 > (`проверено …`) не принимается. Закрытый пункт удаляется отсюда целиком и
 > попадает одной записью в `Что сделано.txt`.
 >
-> **Состояние проверки.** Stage 5 (16.11.2026): код есть — `scripts/audit-collect.mjs`
-> (включая DNS, SPF/DMARC и ALPN), `scripts/audit-render.mjs`,
+> **Состояние проверки.** Stage 6 (16.11.2026): код есть — `scripts/audit-collect.mjs`
+> (DNS, политики SPF/DMARC, CAA, MTA-STS, ALPN, мягкая 404, HTTP→HTTPS,
+> статические HTML-проверки), `scripts/mail-policy.mjs`, `scripts/audit-render.mjs`,
 > `scripts/audit-summary.mjs` (Ollama), шаблон `templates/audit-report.html`,
 > команда `/audit`. Гейт `node tools/check-docs.mjs` — exit 0.
-> Живые прогоны: `https://elvstudio.vercel.app/kit/` — 17 находок (15 `ok`,
-> 1 `fail` — нет CSP, 1 `unknown` — DNS); `https://www.ducasolutions.com/` —
-> 19 находок (6 `ok`, 9 `warn`, 3 `fail`, 1 `unknown`). ALPN `h2` на обоих.
-> Отчёт 12 КБ, ноль внешних запросов.
+> Живой прогон `https://www.ducasolutions.com/` — 36 находок (15 `ok`,
+> 16 `warn`, 4 `fail`, 1 `unknown`), 5 запросов на адрес, ALPN `h2`, отчёт 15 КБ,
+> ноль внешних запросов. Почтовые политики и HTML-ветки проверены фикстурой без
+> сети (18 ожидаемых уровней); живые ветки `ok`/`fail` для DNS по-прежнему не
+> наблюдались.
 
 ---
 
@@ -66,27 +68,6 @@
 Приёмка: в логе видны паузы и `User-Agent`; искусственный сайт с 429 даёт
 `unknown` и не повторяет запрос.
 
-### AUD-15. Находки из уже скачанного: кэш, раскрытие версии, mixed content, метатеги
-
-Сейчас коллектор собирает `cache-control`, `content-encoding`, `vary`, `server`,
-`x-powered-by` (`scripts/audit-collect.mjs:46-60`), но **ни одной находки** по ним
-не делает. `parseHtml` (`:91-115`) читает только `title`, `description`,
-`canonical`, `lang`, `generator`, `h1` и список `src`; `alt`, `label`, OG/Twitter,
-favicon и `meta robots` не разбираются. Картинки на `:110` — это список адресов,
-размеров нет.
-
-Нужно (без единого нового HTTP-запроса): `server`/`x-powered-by` с версией →
-`warn`; `content-encoding` без `vary` → `warn`; HTML без `cache-control` →
-`warn`; `http://` в `src`/`href` на https-странице → `fail` (mixed content);
-`img` без `alt` и поле без `label`/`aria-label` → `warn` со счётчиком; нет
-`og:title`/`og:image` → `warn`; нет favicon → `warn`; `noindex` → `warn`;
-`title` вне 30–60 и `description` вне 70–160 символов → `warn`.
-
-Приёмка: на живом сайте новые находки появляются при неизменном числе запросов
-(один документ); на аккуратном сайте ни одного нового `fail`; новые поля описаны
-в `docs/architecture.md` §3, новые `id` — в `docs/checks.md` §1; отчёт остаётся
-восьмираздельным (находки уходят в существующие разделы).
-
 ### AUD-16. Подтвердить ветки `ok`/`fail` для SPF и DMARC
 
 Код готов 16.11.2026: `scripts/audit-collect.mjs`, функция `readDns`
@@ -94,10 +75,14 @@ favicon и `meta robots` не разбираются. Картинки на `:11
 находки `dns_a`, `ipv6`, `mx`, `spf`, `dmarc`, `alpn`. ALPN проверен живьём:
 `elvstudio.vercel.app` → `h2`, `ok`.
 
-Не подтверждено: ветки `ok` и `fail` для почты. На машине разработки все
-DNS-запросы падают с `ECONNREFUSED` (UDP 53 закрыт), поэтому отчёт честно
-показывает `dns: unknown`, `resolver: ECONNREFUSED` (проверено 16.11.2026,
-`audit-report/audit_data.json`).
+Stage 6 (16.11.2026) добавил `resolveCaa` и TXT `_mta-sts.<host>`, а разбор
+политик SPF/DMARC вынесен в `scripts/mail-policy.mjs` и проверен без сети:
+11 случаев, 0 провалов (`docs/checks.md` §1).
+
+Не подтверждено: ветки `ok` и `fail` для почты на живом DNS. На машине
+разработки все DNS-запросы падают с `ECONNREFUSED` (UDP 53 закрыт), поэтому
+отчёт честно показывает `dns: unknown`, `resolver: ECONNREFUSED` (проверено
+16.11.2026, `audit-report/audit_data.json`).
 
 Нужно: прогнать на машине с рабочим UDP 53 — один домен-апекс без DMARC
 (ожидается `fail` с evidence) и один с настроенными SPF/DMARC (ожидается `ok`).
@@ -116,7 +101,10 @@ DNS-запросы падают с `ECONNREFUSED` (UDP 53 закрыт), поэ�
 режим `--self-test`, который гоняет сбор по фикстуре без интернета.
 
 проверено 16.11.2026: каталога `test/fixtures/` нет, ключа `--self-test` в
-`scripts/audit-collect.mjs` нет.
+`scripts/audit-collect.mjs` нет. Stage 6 вынес чистые функции в
+`scripts/mail-policy.mjs` (проверены 11 случаев) и прогнал HTML-ветки на
+локальной фикстуре-сервере, но постоянных фикстур в репозитории и режима
+`--self-test` по-прежнему нет.
 
 Приёмка: `node scripts/audit-collect.mjs --self-test` → exit 0 при выключенной
 сети; результат совпадает с эталонным фрагментом `audit_data.json`.
@@ -145,18 +133,19 @@ accessibility / best practices / SEO — 100 / 100 / 100, в сети один �
 цифры не равны PageSpeed; гейты CI от браузера не зависят; сценарий описан так,
 что его повторит другой человек.
 
-### AUD-17. Проба 404, внутренние ссылки, вес ассетов
+### AUD-17. Внутренние ссылки и вес ассетов
 
-Коллектор не ходит ни за одним ресурсом: `images` — только список `src`
-(`scripts/audit-collect.mjs:110`), хосты считаются на `:134`, пауза 1 с между
-адресами — `:495`. Поэтому битая ссылка и мягкая 404 в отчёт не попадают.
+Мягкая 404 и редирект HTTP→HTTPS сделаны в Stage 6 (`scripts/audit-collect.mjs:287`
+— `probeSoft404`, `:345` — `probeHttpRedirect`; поля `seo.soft_404_status`,
+`seo.https_redirect`, находки `soft_404`, `https_redirect`). Не хватает второй
+половины: коллектор по-прежнему не ходит за внутренними ссылками и ассетами,
+поэтому битая ссылка и вес картинок в отчёт не попадают.
 
-Нужно: запрос заведомо несуществующего пути → 404 `ok`, 200 `fail` (мягкая 404);
-первые 20 внутренних ссылок — статус и редирект, битые `fail`; первые 10
+Нужно: первые 20 внутренних ссылок — статус и редирект, битые `fail`; первые 10
 ассетов — `content-length` и `content-encoding` (brotli/gzip), общий вес
 страницы; бюджет ≤ 35 запросов на адрес, 1 в секунду, при 429 — `unknown` и
 остановка обхода (`docs/scope.md` §3).
 
 Приёмка: на сайте с заведомо битой ссылкой находка содержит точный URL; один
 адрес проходит не дольше 40 с; при 429 обход останавливается, а не повторяется;
-в логе видны паузы; число запросов на адрес выводится в `meta`.
+в логе видны паузы; число запросов на адрес — в поле `requests` (сделано).

@@ -74,13 +74,14 @@ OpenCode, поэтому прогон идёт в живой сессии аге
 | `status` | число или `null` | HTTP-код последнего ответа |
 | `error` | строка или `null` | причина, если прогон не удался |
 | `redirects` | массив | цепочка `{from, to, status}` |
+| `requests` | число | сколько HTTP-запросов сделал сбор по этому адресу |
 | `headers` | объект | только нужные заголовки, в нижнем регистре |
 | `tls` | объект или `null` | `protocol`, `alpn`, `issuer`, `not_before`, `not_after`, `days_left`, `san[]` |
-| `dns` | объект | `a[]`, `aaaa[]`, `mx[]`, `ns[]`, `txt[]`, `spf`, `dmarc`, `codes{}`, `error` |
+| `dns` | объект | `a[]`, `aaaa[]`, `mx[]`, `ns[]`, `txt[]`, `spf`, `spf_count`, `dmarc`, `caa[]`, `mta_sts`, `codes{}`, `error` |
 | `timing` | объект | `ttfb_ms`, `total_ms` |
-| `content` | объект | `bytes`, `title`, `meta_description`, `canonical`, `lang`, `h1_count`, `h1[]`, `generator`, `inline_style_bytes` |
+| `content` | объект | `bytes`, `title`, `meta_description`, `canonical`, `lang`, `h1_count`, `h1[]`, `generator`, `viewport`, `robots_meta`, `og_title`, `og_image`, `twitter_card`, `favicon`, `images_no_alt`, `images_no_dim`, `images_lazy`, `controls_no_label`, `controls_total`, `mixed_content[]`, `inline_style_bytes` |
 | `assets` | объект | `scripts`, `styles`, `images`, `inline_scripts`, `svg`, `external_hosts[]`, `third_party[]` |
-| `seo` | объект | `robots_status`, `sitemap_status`, `sitemap_urls`, `sitemap_lastmod`, `has_jsonld`, `jsonld_types[]` |
+| `seo` | объект | `robots_status`, `robots_sitemap`, `sitemap_status`, `sitemap_type`, `sitemap_prolog`, `sitemap_urls`, `sitemap_lastmod`, `soft_404_status`, `soft_404_title`, `https_redirect`, `https_redirect_status`, `https_redirect_to`, `has_jsonld`, `jsonld_types[]` |
 | `tech` | массив | сигнатуры: `wordpress`, `bitrix`, `nextjs`, `laravel`, `drupal`, `vercel`, `x-powered-by` |
 | `external` | объект | `pagespeed`, `observatory`, `ssllabs` — по наличию ключей (AUD-06). Браузерные данные сюда не пишутся: рендер принимает их отдельным `browser_data.json` (AUD-14) |
 | `findings` | массив | `{id, level, check, message, evidence}` |
@@ -103,6 +104,9 @@ OpenCode, поэтому прогон идёт в живой сессии аге
 | Редирект длиннее 5 шагов | `error: "redirect_loop"` | не идём дальше |
 | Ответ 403/429 | `status`, `level: unknown` | не обходим защиту |
 | Нет ключа API | `external.*: null`, находка `unknown` | не падаем с ошибкой |
+| Порт 80 закрыт | `seo.https_redirect: null`, находка `unknown` | не считаем редирект настроенным |
+| Проба 404 получила 200 | находка `soft_404` уровня `warn`/`fail` | не путаем с недоступностью сайта |
+| Резолвер DNS не отвечает | `dns.error`, находка `unknown`; CAA и MTA-STS не проверяются | не пишем `ok` |
 
 Итоговый код выхода: `0` — собрано всё, `1` — не собрано ничего (нет
 `sites.json`, все адреса упали), `2` — ошибка аргументов.

@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { resolve4, resolve6, resolveMx, resolveNs, resolveTxt } from 'node:dns/promises';
+import { resolve4, resolve6, resolveCaa, resolveMx, resolveNs, resolveTxt } from 'node:dns/promises';
 import tls from 'node:tls';
+import { dmarcPolicy, spfPolicy } from './mail-policy.mjs';
 
 const UA = 'site-audit/0.1 (+https://github.com/elips0675-web/scansite)';
 const TIMEOUT_MS = 10000;
@@ -107,18 +108,27 @@ const readDns = async (hostname) => {
     }
   };
 
-  const [a, aaaa, mx, ns, txt, dmarcTxt] = await Promise.all([
+  const [a, aaaa, mx, ns, txt, dmarcTxt, mtaStsTxt, caa] = await Promise.all([
     safe('a', () => resolve4(hostname)),
     safe('aaaa', () => resolve6(hostname)),
     safe('mx', () => resolveMx(hostname)),
     safe('ns', () => resolveNs(hostname)),
     safe('txt', () => resolveTxt(hostname)),
     safe('dmarc', () => resolveTxt(`_dmarc.${hostname}`)),
+    safe('mta_sts', () => resolveTxt(`_mta-sts.${hostname}`)),
+    safe('caa', () => resolveCaa(hostname)),
   ]);
 
   const flatten = (records) => (records || []).map((chunks) => chunks.join(''));
   const txtFlat = flatten(txt);
   const dmarcFlat = flatten(dmarcTxt);
+  const mtaFlat = flatten(mtaStsTxt);
+  const caaFlat = (caa || [])
+    .map((record) => {
+      const key = record.issue ? 'issue' : record.issuewild ? 'issuewild' : record.iodef ? 'iodef' : null;
+      return key ? `${key} ${record[key]}` : null;
+    })
+    .filter(Boolean);
   const resolverDown = [codes.a, codes.aaaa].some((code) =>
     ['ECONNREFUSED', 'ETIMEOUT', 'ESERVFAIL', 'ECANCELLED'].includes(code),
   );
@@ -130,7 +140,10 @@ const readDns = async (hostname) => {
     ns: ns || [],
     txt: txtFlat,
     spf: txtFlat.find((value) => /^v=spf1/i.test(value)) || null,
+    spf_count: txtFlat.filter((value) => /^v=spf1/i.test(value)).length,
     dmarc: dmarcFlat.find((value) => /^v=DMARC1/i.test(value)) || null,
+    caa: caaFlat,
+    mta_sts: mtaFlat.find((value) => /^v=STSv1/i.test(value)) || null,
     codes,
     error: resolverDown ? `resolver: ${codes.a || codes.aaaa}` : null,
   };
@@ -138,16 +151,28 @@ const readDns = async (hostname) => {
 
 const parseHtml = (body, base) => {
   const title = (body.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [, ''])[1].trim();
-  const description = (
-    body.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)/i) || [, '']
-  )[1];
   const canonical = (
     body.match(/<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']*)/i) || [, '']
   )[1];
   const lang = (body.match(/<html[^>]*lang=["']([^"']+)/i) || [, ''])[1];
-  const generator = (
-    body.match(/<meta[^>]+name=["']generator["'][^>]*content=["']([^"']*)/i) || [, '']
-  )[1];
+
+  const attr = (tag, name) => (tag.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']*)["']`, 'i')) || [, ''])[1];
+  const meta = {};
+  for (const tag of body.matchAll(/<meta\b[^>]*>/gi)) {
+    const key = (attr(tag[0], 'name') || attr(tag[0], 'property')).toLowerCase();
+    if (!key || Object.hasOwn(meta, key)) continue;
+    meta[key] = attr(tag[0], 'content');
+  }
+
+  const description = meta.description || '';
+  const generator = meta.generator || '';
+  const viewport = meta.viewport || '';
+  const robotsMeta = meta.robots || '';
+  const ogTitle = meta['og:title'] || '';
+  const ogImage = meta['og:image'] || '';
+  const twitterCard = meta['twitter:card'] || '';
+  const favicon = /<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]*href=["'][^"']+/i.test(body);
+
   const h1 = [...body.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)].map((m) =>
     m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
   );
@@ -155,7 +180,30 @@ const parseHtml = (body, base) => {
   const styles = [
     ...body.matchAll(/<link[^>]+rel=["']stylesheet["'][^>]*href=["']([^"']+)/gi),
   ].map((m) => m[1]);
-  const images = [...body.matchAll(/<img[^>]+src=["']([^"']+)/gi)].map((m) => m[1]);
+  const imgTags = [...body.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
+  const images = imgTags.map((tag) => attr(tag, 'src')).filter(Boolean);
+  const imagesNoAlt = imgTags.filter((tag) => !/\salt\s*=/i.test(tag)).length;
+  const imagesNoDim = imgTags.filter((tag) => !/\swidth\s*=/i.test(tag) || !/\sheight\s*=/i.test(tag)).length;
+  const imagesLazy = imgTags.filter((tag) => /\sloading\s*=\s*["']lazy["']/i.test(tag)).length;
+  const labelFors = new Set([...body.matchAll(/<label[^>]+for=["']([^"']+)["']/gi)].map((m) => m[1]));
+  const controls = [...body.matchAll(/<(input|select|textarea)\b[^>]*>/gi)]
+    .map((m) => m[0])
+    .filter((tag) => !/\stype\s*=\s*["']hidden["']/i.test(tag));
+  const controlsNoLabel = controls.filter((tag) => {
+    if (/\saria-label(?:ledby)?\s*=/i.test(tag)) return false;
+    const id = attr(tag, 'id');
+    return !(id && labelFors.has(id));
+  }).length;
+  const mixedContent = [];
+  if (new URL(base).protocol === 'https:') {
+    for (const asset of [...scripts, ...styles, ...images]) {
+      try {
+        if (new URL(asset, base).protocol === 'http:') mixedContent.push(asset);
+      } catch {
+        continue;
+      }
+    }
+  }
   const inlineStyleBytes = [...body.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].reduce(
     (sum, m) => sum + Buffer.byteLength(m[1]),
     0,
@@ -193,10 +241,22 @@ const parseHtml = (body, base) => {
     canonical,
     lang,
     generator,
+    viewport,
+    robots_meta: robotsMeta,
+    og_title: ogTitle,
+    og_image: ogImage,
+    twitter_card: twitterCard,
+    favicon,
     h1,
     scripts,
     styles,
     images,
+    images_no_alt: imagesNoAlt,
+    images_no_dim: imagesNoDim,
+    images_lazy: imagesLazy,
+    controls_no_label: controlsNoLabel,
+    controls_total: controls.length,
+    mixed_content: mixedContent,
     inlineStyleBytes,
     jsonld,
     external_hosts: [...hosts],
@@ -224,12 +284,105 @@ const techOf = (body, headers, generator) => {
   return deduped;
 };
 
+const probeSoft404 = async (base, homeTitle) => {
+  const target = new URL('/__audit_probe_no_such_page__', base);
+  try {
+    const response = await fetch(target, {
+      redirect: 'manual',
+      headers: { 'user-agent': UA },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (response.status === 200) {
+      const body = await response.text();
+      const title = (body.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [, ''])[1].trim();
+      const same = Boolean(title && homeTitle && title === homeTitle);
+      return {
+        status: 200,
+        title: title || null,
+        level: same ? 'fail' : 'warn',
+        message: same
+          ? 'Мягкая 404: несуществующий путь отдаёт 200 с заголовком главной'
+          : 'Несуществующий путь отдаёт 200: мягкая 404',
+        evidence: `${target.pathname} → HTTP 200, title: ${title || '—'}`,
+      };
+    }
+    if (response.status >= 300 && response.status < 400) {
+      return {
+        status: response.status,
+        title: null,
+        level: 'warn',
+        message: 'Несуществующий путь перенаправляет вместо 404',
+        evidence: `${target.pathname} → HTTP ${response.status} ${response.headers.get('location') || ''}`.trim(),
+      };
+    }
+    if (response.status === 404 || response.status === 410) {
+      return {
+        status: response.status,
+        title: null,
+        level: 'ok',
+        message: `Несуществующий путь отдаёт ${response.status}`,
+        evidence: `${target.pathname} → HTTP ${response.status}`,
+      };
+    }
+    return {
+      status: response.status,
+      title: null,
+      level: 'unknown',
+      message: `Несуществующий путь: HTTP ${response.status}`,
+      evidence: `${target.pathname} → HTTP ${response.status}`,
+    };
+  } catch (error) {
+    return {
+      status: null,
+      title: null,
+      level: 'unknown',
+      message: 'Проба несуществующего пути не выполнена',
+      evidence: error.message,
+    };
+  }
+};
+
+const probeHttpRedirect = async (finalUrl) => {
+  const httpUrl = new URL(finalUrl);
+  httpUrl.protocol = 'http:';
+  try {
+    const response = await fetch(httpUrl, {
+      redirect: 'manual',
+      headers: { 'user-agent': UA },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    const location = response.headers.get('location');
+    const toHttps = location ? new URL(location, httpUrl).protocol === 'https:' : false;
+    const redirects = response.status >= 300 && response.status < 400 && toHttps;
+    return {
+      status: response.status,
+      location,
+      redirects,
+      level: redirects ? 'ok' : 'fail',
+      message: redirects
+        ? 'HTTP перенаправляет на HTTPS'
+        : `HTTP не перенаправляет на HTTPS (HTTP ${response.status})`,
+      evidence: `${httpUrl.origin} → HTTP ${response.status}${location ? ` → ${location}` : ''}`,
+    };
+  } catch (error) {
+    return {
+      status: null,
+      location: null,
+      redirects: null,
+      level: 'unknown',
+      message: 'Проверка HTTP→HTTPS не выполнена',
+      evidence: error.message,
+    };
+  }
+};
+
 const auditSite = async (url) => {
   const result = {
     url,
     final_url: null,
     status: null,
     error: null,
+    requests: 0,
     redirects: [],
     headers: {},
     tls: null,
@@ -243,6 +396,18 @@ const auditSite = async (url) => {
       h1_count: null,
       h1: [],
       generator: null,
+      viewport: null,
+      robots_meta: null,
+      og_title: null,
+      og_image: null,
+      twitter_card: null,
+      favicon: false,
+      images_no_alt: null,
+      images_no_dim: null,
+      images_lazy: null,
+      controls_no_label: null,
+      controls_total: null,
+      mixed_content: [],
       inline_style_bytes: null,
     },
     assets: {
@@ -256,9 +421,17 @@ const auditSite = async (url) => {
     },
     seo: {
       robots_status: null,
+      robots_sitemap: null,
       sitemap_status: null,
+      sitemap_type: null,
+      sitemap_prolog: null,
       sitemap_urls: null,
       sitemap_lastmod: null,
+      soft_404_status: null,
+      soft_404_title: null,
+      https_redirect: null,
+      https_redirect_status: null,
+      https_redirect_to: null,
       has_jsonld: false,
       jsonld_types: [],
     },
@@ -270,7 +443,10 @@ const auditSite = async (url) => {
       ns: [],
       txt: [],
       spf: null,
+      spf_count: 0,
       dmarc: null,
+      caa: [],
+      mta_sts: null,
       codes: {},
       error: null,
     },
@@ -291,6 +467,7 @@ const auditSite = async (url) => {
         headers: { 'user-agent': UA },
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
+      result.requests += 1;
       if (ttfb === null) ttfb = performance.now() - started;
       const location = response.headers.get('location');
 
@@ -355,6 +532,18 @@ const auditSite = async (url) => {
     h1_count: parsed.h1.length,
     h1: parsed.h1,
     generator: parsed.generator || null,
+    viewport: parsed.viewport || null,
+    robots_meta: parsed.robots_meta || null,
+    og_title: parsed.og_title || null,
+    og_image: parsed.og_image || null,
+    twitter_card: parsed.twitter_card || null,
+    favicon: parsed.favicon,
+    images_no_alt: parsed.images_no_alt,
+    images_no_dim: parsed.images_no_dim,
+    images_lazy: parsed.images_lazy,
+    controls_no_label: parsed.controls_no_label,
+    controls_total: parsed.controls_total,
+    mixed_content: parsed.mixed_content,
     inline_style_bytes: parsed.inlineStyleBytes,
   };
 
@@ -494,13 +683,135 @@ const auditSite = async (url) => {
         : finding('h1', 'warn', 'SEO', `h1 больше одного: ${result.content.h1_count}`, result.content.h1.join(' | ')),
   );
 
+  result.findings.push(
+    parsed.lang
+      ? finding('lang', 'ok', 'Доступность', `Атрибут lang задан: ${parsed.lang}`, `<html lang="${parsed.lang}">`)
+      : finding('lang', 'warn', 'Доступность', 'Нет атрибута lang у <html>: скринридер не знает язык', '<html>: —'),
+    parsed.viewport
+      ? /width\s*=\s*device-width/i.test(parsed.viewport)
+        ? finding('viewport', 'ok', 'Мобильная вёрстка', 'Viewport с width=device-width задан', parsed.viewport)
+        : finding('viewport', 'warn', 'Мобильная вёрстка', 'Viewport задан без width=device-width', parsed.viewport)
+      : finding('viewport', 'fail', 'Мобильная вёрстка', 'Нет meta viewport: страница не адаптируется под мобильные', 'viewport: —'),
+  );
+
+  const ogParts = [
+    parsed.og_title ? 'og:title' : null,
+    parsed.og_image ? 'og:image' : null,
+    parsed.twitter_card ? 'twitter:card' : null,
+  ].filter(Boolean);
+  result.findings.push(
+    ogParts.length === 3
+      ? finding('og', 'ok', 'Соцсети', 'Теги превью заданы полностью', ogParts.join(', '))
+      : finding(
+          'og',
+          'warn',
+          'Соцсети',
+          `Тегов превью не хватает: ${3 - ogParts.length} из 3 (og:title, og:image, twitter:card)`,
+          ogParts.length ? `есть ${ogParts.join(', ')}` : 'og:title, og:image, twitter:card: —',
+        ),
+    parsed.favicon
+      ? finding('favicon', 'ok', 'Иконка', 'Favicon объявлен', '<link rel="icon">')
+      : finding('favicon', 'warn', 'Иконка', 'Favicon не объявлен', '<link rel="icon">: —'),
+    /noindex/i.test(parsed.robots_meta)
+      ? finding('meta_robots', 'warn', 'SEO', 'meta robots запрещает индексацию (noindex)', parsed.robots_meta)
+      : finding('meta_robots', 'ok', 'SEO', 'meta robots не запрещает индексацию', parsed.robots_meta || 'robots: —'),
+  );
+
+  if (result.content.title) {
+    const titleLength = result.content.title.length;
+    result.findings.push(
+      finding(
+        'title_length',
+        titleLength >= 30 && titleLength <= 60 ? 'ok' : 'warn',
+        'SEO',
+        `Длина title ${titleLength} символов (норма 30–60)`,
+        result.content.title,
+      ),
+    );
+  }
+
+  if (result.content.meta_description) {
+    const descriptionLength = result.content.meta_description.length;
+    result.findings.push(
+      finding(
+        'description_length',
+        descriptionLength >= 70 && descriptionLength <= 160 ? 'ok' : 'warn',
+        'SEO',
+        `Длина description ${descriptionLength} символов (норма 70–160)`,
+        `${descriptionLength} символов`,
+      ),
+    );
+  }
+
+  const imageTotal = parsed.images.length;
+  result.findings.push(
+    imageTotal === 0
+      ? finding('img_alt', 'unknown', 'Доступность', 'В HTML нет изображений: alt проверять нечего', 'img: 0')
+      : parsed.images_no_alt === 0
+        ? finding('img_alt', 'ok', 'Доступность', `У всех изображений есть alt (${imageTotal})`, 'alt: 0 пропусков')
+        : finding('img_alt', 'warn', 'Доступность', `Без alt: ${parsed.images_no_alt} из ${imageTotal}`, `${parsed.images_no_alt} <img> без атрибута alt`),
+    imageTotal === 0
+      ? finding('img_dim', 'unknown', 'Скорость', 'В HTML нет изображений: размеры проверять нечего', 'img: 0')
+      : parsed.images_no_dim === 0
+        ? finding('img_dim', 'ok', 'Скорость', `У всех изображений заданы width и height (${imageTotal})`, 'width/height: 0 пропусков')
+        : finding('img_dim', 'warn', 'Скорость', `Без width/height: ${parsed.images_no_dim} из ${imageTotal}`, 'риск сдвига раскладки (CLS)'),
+    parsed.images_lazy > 0
+      ? finding('img_lazy', 'ok', 'Скорость', `loading="lazy" у ${parsed.images_lazy} изображений`, `из ${imageTotal}`)
+      : imageTotal >= 5
+        ? finding('img_lazy', 'warn', 'Скорость', 'Ни одно изображение не отложено (loading="lazy")', `img: ${imageTotal}`)
+        : finding('img_lazy', 'unknown', 'Скорость', 'Изображений меньше пяти: вывод о lazy-loading не делается', `img: ${imageTotal}`),
+    parsed.controls_total === 0
+      ? finding('form_label', 'unknown', 'Доступность', 'Полей формы нет: подписи проверять нечего', 'input/select/textarea: 0')
+      : parsed.controls_no_label === 0
+        ? finding('form_label', 'ok', 'Доступность', `У всех полей формы есть подпись (${parsed.controls_total})`, 'label/aria-label: 0 пропусков')
+        : finding('form_label', 'warn', 'Доступность', `Без подписи: ${parsed.controls_no_label} из ${parsed.controls_total}`, 'нет label for, aria-label или aria-labelledby'),
+  );
+
+  const mixed = parsed.mixed_content;
+  result.findings.push(
+    new URL(current).protocol !== 'https:'
+      ? finding('mixed_content', 'unknown', 'Безопасность', 'Страница не по HTTPS: mixed content не проверялся', current)
+      : mixed.length === 0
+        ? finding('mixed_content', 'ok', 'Безопасность', 'Подресурсов по http:// нет', '0 http-ресурсов')
+        : finding('mixed_content', 'fail', 'Безопасность', `Mixed content: ${mixed.length} ресурсов по http://`, mixed.slice(0, 5).join(', ')),
+  );
+
+  const serverHeader = [result.headers.server, result.headers['x-powered-by']].filter(Boolean).join(' ');
+  result.findings.push(
+    /\d+\.\d+/.test(serverHeader)
+      ? finding('version_disclosure', 'warn', 'Раскрытие версии', `Сервер раскрывает версию: ${serverHeader}`, serverHeader.slice(0, 120))
+      : finding('version_disclosure', 'ok', 'Раскрытие версии', 'Версия сервера не раскрыта', serverHeader || 'server, x-powered-by: —'),
+  );
+
+  const cacheControl = result.headers['cache-control'];
+  result.findings.push(
+    cacheControl
+      ? finding('html_cache', 'ok', 'Кэширование', 'Cache-Control у HTML задан', cacheControl)
+      : finding('html_cache', 'warn', 'Кэширование', 'HTML без Cache-Control: прокси и браузер решают сами', 'cache-control: —'),
+  );
+
+  const encoding = result.headers['content-encoding'];
+  const vary = result.headers.vary || '';
+  result.findings.push(
+    encoding
+      ? /accept-encoding/i.test(vary)
+        ? finding('compression', 'ok', 'Сжатие', `HTML сжат: ${encoding}, Vary корректен`, `content-encoding: ${encoding}; vary: ${vary}`)
+        : finding('compression', 'warn', 'Сжатие', `HTML сжат (${encoding}), но нет Vary: Accept-Encoding`, `vary: ${vary || '—'}`)
+      : finding('compression', 'warn', 'Сжатие', 'HTML не сжат: нет content-encoding', 'content-encoding: —'),
+  );
+
   const seoBase = new URL(current);
   try {
     const robots = await fetch(new URL('/robots.txt', seoBase), {
       headers: { 'user-agent': UA },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+    result.requests += 1;
     result.seo.robots_status = robots.status;
+    if (robots.status === 200) {
+      const robotsText = await robots.text();
+      result.seo.robots_sitemap = /^sitemap:\s*\S+/im.test(robotsText);
+    }
   } catch {
     result.seo.robots_status = null;
   }
@@ -510,9 +821,12 @@ const auditSite = async (url) => {
       headers: { 'user-agent': UA },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+    result.requests += 1;
     result.seo.sitemap_status = sitemap.status;
+    result.seo.sitemap_type = sitemap.headers.get('content-type');
     if (sitemap.status === 200) {
       const xml = await sitemap.text();
+      result.seo.sitemap_prolog = /^\s*<\?xml/i.test(xml);
       result.seo.sitemap_urls = (xml.match(/<loc>/g) || []).length;
       const lastmods = [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
       result.seo.sitemap_lastmod = lastmods.length ? lastmods.sort().at(-1) : null;
@@ -523,7 +837,15 @@ const auditSite = async (url) => {
 
   result.findings.push(
     result.seo.robots_status === 200
-      ? finding('robots', 'ok', 'SEO', 'robots.txt отвечает 200', 'robots.txt')
+      ? finding(
+          'robots',
+          result.seo.robots_sitemap ? 'ok' : 'warn',
+          'SEO',
+          result.seo.robots_sitemap
+            ? 'robots.txt отвечает 200 и указывает Sitemap'
+            : 'robots.txt отвечает 200, но без директивы Sitemap',
+          result.seo.robots_sitemap ? 'robots.txt: Sitemap указан' : 'robots.txt: Sitemap: —',
+        )
       : finding('robots', 'warn', 'SEO', 'robots.txt недоступен', `status: ${text(result.seo.robots_status) || '—'}`),
   );
 
@@ -531,18 +853,45 @@ const auditSite = async (url) => {
     const stale = result.seo.sitemap_lastmod
       ? Date.now() - new Date(result.seo.sitemap_lastmod).getTime() > 365 * 86400000
       : false;
+    const sitemapProblems = [];
+    if (!/(application|text)\/xml/i.test(result.seo.sitemap_type || '')) {
+      sitemapProblems.push(`тип ${result.seo.sitemap_type || '—'}`);
+    }
+    if (!result.seo.sitemap_prolog) sitemapProblems.push('нет XML-пролога');
+    if (stale) sitemapProblems.push('не обновлялся больше года');
     result.findings.push(
       finding(
         'sitemap',
-        stale ? 'warn' : 'ok',
+        sitemapProblems.length ? 'warn' : 'ok',
         'SEO',
-        stale ? 'sitemap.xml не обновлялся больше года' : `sitemap.xml: ${result.seo.sitemap_urls} адресов`,
-        `lastmod: ${result.seo.sitemap_lastmod || '—'}`,
+        sitemapProblems.length
+          ? `sitemap.xml: ${sitemapProblems.join(', ')}`
+          : `sitemap.xml: ${result.seo.sitemap_urls} адресов`,
+        `тип: ${result.seo.sitemap_type || '—'}, lastmod: ${result.seo.sitemap_lastmod || '—'}`,
       ),
     );
   } else {
     result.findings.push(
       finding('sitemap', 'warn', 'SEO', 'sitemap.xml недоступен', `status: ${text(result.seo.sitemap_status) || '—'}`),
+    );
+  }
+
+  const soft = await probeSoft404(seoBase, result.content.title);
+  result.requests += 1;
+  result.seo.soft_404_status = soft.status;
+  result.seo.soft_404_title = soft.title;
+  result.findings.push(finding('soft_404', soft.level, 'SEO', soft.message, soft.evidence));
+
+  if (new URL(current).protocol === 'https:') {
+    const https = await probeHttpRedirect(current);
+    result.requests += 1;
+    result.seo.https_redirect = https.redirects;
+    result.seo.https_redirect_status = https.status;
+    result.seo.https_redirect_to = https.location;
+    result.findings.push(finding('https_redirect', https.level, 'HTTPS', https.message, https.evidence));
+  } else {
+    result.findings.push(
+      finding('https_redirect', 'unknown', 'HTTPS', 'Сайт не по HTTPS: проверять нечего', current),
     );
   }
 
@@ -557,6 +906,8 @@ const auditSite = async (url) => {
   const likelySubdomain = host.split('.').length > 2;
   const mailLevel = (present) => (present ? 'ok' : likelySubdomain ? 'unknown' : 'fail');
   const mailNote = likelySubdomain ? ' (поддомен: записи обычно на апексе)' : '';
+  const spf = result.dns.spf ? spfPolicy(result.dns.spf) : null;
+  const dmarc = result.dns.dmarc ? dmarcPolicy(result.dns.dmarc) : null;
 
   if (result.dns.error) {
     result.findings.push(
@@ -579,17 +930,36 @@ const auditSite = async (url) => {
       ),
       finding(
         'spf',
-        mailLevel(Boolean(result.dns.spf)),
+        spf ? spf.level : mailLevel(false),
         'Почта',
-        result.dns.spf ? 'SPF задан' : `SPF не найден${mailNote}`,
+        spf ? `SPF: ${spf.note}` : `SPF не найден${mailNote}`,
         result.dns.spf || 'TXT: —',
       ),
+      result.dns.spf_count > 1
+        ? finding('spf_multiple', 'warn', 'Почта', `SPF-записей ${result.dns.spf_count}: несколько ломают проверку`, result.dns.spf)
+        : finding('spf_multiple', 'ok', 'Почта', 'SPF-запись одна', '1 запись'),
       finding(
         'dmarc',
-        mailLevel(Boolean(result.dns.dmarc)),
+        dmarc ? dmarc.level : mailLevel(false),
         'Почта',
-        result.dns.dmarc ? 'DMARC задан' : `DMARC не найден${mailNote}`,
+        dmarc ? `DMARC: ${dmarc.note}` : `DMARC не найден${mailNote}`,
         result.dns.dmarc || '_dmarc TXT: —',
+      ),
+      finding(
+        'caa',
+        result.dns.caa.length ? 'ok' : likelySubdomain ? 'unknown' : 'warn',
+        'Почта',
+        result.dns.caa.length
+          ? `CAA: ${result.dns.caa.length} записей`
+          : `CAA не объявлен${mailNote}: выпуск сертификата не ограничен`,
+        result.dns.caa.join('; ') || 'CAA: —',
+      ),
+      finding(
+        'mta_sts',
+        result.dns.mta_sts ? 'ok' : likelySubdomain ? 'unknown' : 'warn',
+        'Почта',
+        result.dns.mta_sts ? 'MTA-STS объявлен' : `MTA-STS не объявлен${mailNote}: SMTP без обязательного TLS`,
+        result.dns.mta_sts || '_mta-sts TXT: —',
       ),
     );
   }

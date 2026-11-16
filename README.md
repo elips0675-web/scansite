@@ -4,15 +4,16 @@
 проверяемые факты (заголовки, TLS, скорость, периметр SEO) в `audit_data.json`
 и рендерит из него один самодостаточный `audit-report.html`.
 
-**Состояние: Stage 4 — сбор (заголовки, TLS, DNS, скорость, периметр SEO),
-рендер и команда `/audit`**
+**Состояние: Stage 6 — сбор (заголовки, TLS, DNS и почта, скорость, периметр SEO,
+доступность), рендер, «Выводы» моделью и команда `/audit`**
 (https://github.com/elips0675-web/scansite). Код есть: `scripts/audit-collect.mjs`
-(все проверки `docs/checks.md` §1, ноль зависимостей), `templates/audit-report.html`
-и `scripts/audit-render.mjs` (детерминированный рендер, проверка на незаполненные
+(все проверки `docs/checks.md` §1, ноль зависимостей), `scripts/mail-policy.mjs`
+(разбор SPF/DMARC без сети), `templates/audit-report.html` и
+`scripts/audit-render.mjs` (детерминированный рендер, проверка на незаполненные
 плейсхолдеры и внешние ресурсы), `tools/check-docs.mjs`,
-`.opencode/commands/audit.md`. Реальный прогон — `https://elvstudio.vercel.app/kit/`:
-17 находок (15 `ok`, 1 `fail` — нет `Content-Security-Policy`, 1 `unknown` — DNS
-недоступен на машине разработки), ALPN `h2`, отчёт 12 КБ, ноль внешних запросов.
+`.opencode/commands/audit.md`. Реальный прогон — `https://www.ducasolutions.com/`:
+36 находок (15 `ok`, 16 `warn`, 4 `fail`, 1 `unknown` — DNS недоступен на машине
+разработки), 5 запросов на адрес, ALPN `h2`, отчёт 15 КБ, ноль внешних запросов.
 
 ## Зачем
 
@@ -43,6 +44,7 @@
 | 2б. Сравнение прогонов (AUD-05) | не начат: нужен `sites.json` и диф двух JSON |
 | 3. Выводы моделью (AUD-04) | **сделан 16.11.2026**: `scripts/audit-summary.mjs` → `audit-report/conclusions.json` → раздел 7 |
 | 4. Внешние API (AUD-06) | не начат |
+| 5. Перенос проверок (AUD-15, AUD-17 частично) | **сделан 16.11.2026**: CAA, MTA-STS, политики SPF/DMARC, мягкая 404, HTTP→HTTPS, статические HTML-проверки, `requests` |
 
 ## Быстрый старт
 
@@ -91,7 +93,7 @@ API и требует показать счётчики и путь к отчё�
 | lighthouse (CLI) | не установлен | `Get-Command lighthouse` |
 | Ollama | 0.40.13, не запущен | `ollama --version` |
 | nvidia-smi | **нет** на этой машине | `nvidia-smi` |
-| git | каталог не репозиторий | `git rev-parse --is-inside-work-tree` |
+| git | есть, ветка `main` → `origin` (GitHub) | `git status -sb` |
 
 Вывод: рецепт из источника (`curl -sI`, `openssl s_client`, `whatweb`) на этой
 машине не выполняется. Замена — Node (`fetch` + `node:tls`), см. `docs/checks.md`.

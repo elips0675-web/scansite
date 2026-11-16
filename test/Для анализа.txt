@@ -2,7 +2,8 @@
 Проект: сканер сайтов (пассивный аудит + HTML-отчёт)
 Каталог: D:\OpenCode сканер сайтов
 Дата среза: 16.11.2026
-Состояние: Stage 4 — сбор (включая DNS и ALPN), рендер, команда /audit.
+Состояние: Stage 6 — сбор (заголовки, TLS, DNS и почта, скорость, SEO и
+доступность), рендер, «Выводы» локальной моделью, команда /audit.
 Репозиторий: https://github.com/elips0675-web/scansite (ветка main).
 
 Файл самодостаточен: если модели не нужен конкретный файл, читать другие не
@@ -15,11 +16,14 @@
 
 Инструмент получает список адресов сайтов и делает пассивный аудит: заголовки
 безопасности, TLS-сертификат, TTFB, вес HTML, сторонние скрипты, perimeter SEO
-(robots.txt, sitemap.xml, canonical, title, description, h1). Результат — один
-self-contained HTML-файл с приоритетами «что чинить первым».
+(robots.txt, sitemap.xml, canonical, title, description, h1), политики
+SPF/DMARC, CAA, MTA-STS, доступность разметки (alt, подписи полей, viewport),
+мягкую 404 и редирект HTTP→HTTPS. Результат — один self-contained HTML-файл с
+приоритетами «что чинить первым».
 
 Код есть с 16.11.2026, зависимостей ноль:
   - scripts/audit-collect.mjs — сбор фактов -> audit-report/audit_data.json;
+  - scripts/mail-policy.mjs — разбор SPF/DMARC без сети (чистые функции);
   - scripts/audit-summary.mjs — «Выводы» локальной моделью -> conclusions.json;
   - templates/audit-report.html + scripts/audit-render.mjs — отчёт из JSON;
   - tools/check-docs.mjs — гейт документации;
@@ -27,10 +31,10 @@ self-contained HTML-файл с приоритетами «что чинить �
     сканирования и без внешних API);
   - входной материал — предложение внешней модели (Qwen), 14 453 байта, 268 строк.
 
-Живой прогон 16.11.2026: https://elvstudio.vercel.app/kit/ — 17 находок
-(15 ok, 1 fail: нет Content-Security-Policy, 1 unknown: DNS-резолвер недоступен),
-ALPN h2, отчёт 12 КБ, ноль внешних запросов, TTFB 316 мс, HTML 90 032 байта
-(brotli на проводе ~21 КБ).
+Живой прогон 16.11.2026: https://www.ducasolutions.com/ — 36 находок
+(15 ok, 16 warn, 4 fail: нет HSTS, нет CSP, нет h1, mixed content;
+1 unknown: DNS-резолвер недоступен), 5 HTTP-запросов на адрес, ALPN h2,
+отчёт 15 КБ, ноль внешних запросов.
 
 Чего проект НЕ делает (зафиксировано): активное сканирование (SQLi/XSS),
 нагрузочные тесты, краулинг всего сайта, веб-интерфейс, хранение истории в БД.
@@ -94,16 +98,22 @@ curl падают.
   sites[] — по элементу на адрес, порядок совпадает с входом
 
 Элемент sites[] (фактические поля, не план):
-  url, final_url, status, error, redirects[], headers{}, tls{protocol, alpn,
-  issuer, subject, not_before, not_after, days_left, san[]},
-  dns{a[], aaaa[], mx[], ns[], txt[], spf, dmarc, codes{}, error},
+  url, final_url, status, error, requests, redirects[],
+  headers{}, tls{protocol, alpn, issuer, subject, not_before, not_after,
+  days_left, san[]},
+  dns{a[], aaaa[], mx[], ns[], txt[], spf, spf_count, dmarc, caa[], mta_sts,
+  codes{}, error},
   timing{ttfb_ms, total_ms},
   content{bytes, title, meta_description, canonical, lang, h1_count, h1[],
-  generator, inline_style_bytes},
+  generator, viewport, robots_meta, og_title, og_image, twitter_card, favicon,
+  images_no_alt, images_no_dim, images_lazy, controls_no_label, controls_total,
+  mixed_content[], inline_style_bytes},
   assets{scripts, styles, images, inline_scripts, svg, external_hosts[],
   third_party[]},
-  seo{robots_status, sitemap_status, sitemap_urls, sitemap_lastmod, has_jsonld,
-  jsonld_types[]},
+  seo{robots_status, robots_sitemap, sitemap_status, sitemap_type,
+  sitemap_prolog, sitemap_urls, sitemap_lastmod, soft_404_status,
+  soft_404_title, https_redirect, https_redirect_status, https_redirect_to,
+  has_jsonld, jsonld_types[]},
   tech[], findings[]
 
 Пример находки (реальный прогон):
@@ -143,9 +153,13 @@ truncated. Рендер подставляет текст и подпись «м
 
   node tools/check-docs.mjs      документация: 23 проверки, exit 0
   node --check scripts/audit-collect.mjs
+  node --check scripts/mail-policy.mjs
   node --check scripts/audit-render.mjs
   node --check scripts/audit-summary.mjs
   node scripts/audit-summary.mjs --dry-run   промт без запроса к Ollama
+  разбор SPF/DMARC — 11 случаев (-all, ~all, нет all, +all, ?all, p=reject,
+  p=quarantine, p=none, нет p, пробелы, регистр), 0 провалов
+  локальная фикстура http://127.0.0.1:8099/ — 18 ожидаемых уровней совпали
   рендер сам падает (exit 1): остались {{...}}, найден внешний ресурс
   (script/link/src/@import/url(http)), файл больше 150 КБ
 
@@ -175,7 +189,8 @@ truncated. Рендер подставляет текст и подпись «м
     письменным разрешением владельца, и не в этом инструменте.
   - Внешние API (PageSpeed, Observatory, SSL Labs) видят только публичные
     адреса; localhost и внутренняя сеть проверяются локально.
-  - Вежливость: 1 запрос в секунду на домен, свой User-Agent с контактом,
+  - Вежливость: 5 запросов на адрес (документ, robots.txt, sitemap.xml, проба
+    404, проба http://), пауза 1 с между адресами, свой User-Agent с контактом,
     таймаут 10 с, ответ 403/429 — статус unknown без обхода.
   - Отчёт: один файл, ноль внешних ссылок и скриптов, ≤ 150 КБ, печать A4.
   - Секреты только в .env; в документации — имена переменных.
@@ -191,20 +206,21 @@ P0
 P1
   AUD-06  внешние API (PageSpeed, Observatory, SSL Labs), ключи из .env
   AUD-07  вежливость: подтвердить 403/429 и паузы, вывести User-Agent в лог
-  AUD-15  находки без новых запросов: кэш, версия в Server, mixed content,
-          alt/label, OG/Twitter, favicon, noindex, длина title/description
-  AUD-16  подтвердить ветки ok/fail для SPF и DMARC (код готов, здесь UDP 53
-          закрыт — ECONNREFUSED)
+  AUD-16  подтвердить ветки ok/fail для SPF и DMARC (код и разбор политик
+          готовы, здесь UDP 53 закрыт — ECONNREFUSED)
 
 P2
-  AUD-10  фикстуры и --self-test без сети
-  AUD-17  проба 404, 20 внутренних ссылок, вес и сжатие ассетов
+  AUD-10  фикстуры и --self-test без сети (mail-policy уже покрыт напрямую)
+  AUD-17  20 внутренних ссылок, вес и сжатие ассетов (мягкая 404 и
+          HTTP→HTTPS сделаны)
   AUD-14  браузерный сценарий + JS-тяжёлый адрес (первый прогон уже сделан)
 
 Полные формулировки с доказательствами — «Что доделать.txt» в корне.
 Закрыты 16.11.2026: AUD-01 (сбор), AUD-02 (сигнатуры), AUD-03 (рендер),
 AUD-04 («Выводы» моделью), AUD-08 (репозиторий), AUD-09 (команда /audit),
-AUD-11 (этот срез), AUD-12 (команды в README), AUD-13 (.gitattributes).
+AUD-11 (этот срез), AUD-12 (команды в README), AUD-13 (.gitattributes),
+AUD-15 (кэш, версия в Server, mixed content, alt/label, OG/Twitter, favicon,
+noindex, длина title/description).
 
 ================================================================================
 8. КАРТА КАТАЛОГА
@@ -223,13 +239,14 @@ AUD-11 (этот срез), AUD-12 (команды в README), AUD-13 (.gitattri
   docs/scope.md              правовые границы проверок
   docs/local-model.md        профиль 3060, лимиты, локально vs облако
   docs/installation.md       окружение, порядок установки, частые сбои
-  docs/qa-checklist.md       приёмка этапов 0-4
+  docs/qa-checklist.md       приёмка этапов 0-6
   docs/roadmap.md            принято / отложено / отклонено
   docs/archive/README.md     архив (пока пуст)
   test/README.md             как пользоваться этим срезом
   test/Для анализа.txt       этот файл
   tools/check-docs.mjs       гейт документации
   scripts/audit-collect.mjs  сбор фактов (fetch + node:tls + node:dns), ноль зависимостей
+  scripts/mail-policy.mjs    разбор SPF/DMARC без сети (spfPolicy, dmarcPolicy)
   scripts/audit-render.mjs   рендер отчёта, проверки на {{...}} и внешние ресурсы
   scripts/audit-summary.mjs  «Выводы» через Ollama -> conclusions.json (≤ 300 слов)
   templates/audit-report.html шаблон отчёта с плейсхолдерами {{...}}
@@ -259,8 +276,9 @@ AUD-11 (этот срез), AUD-12 (команды в README), AUD-13 (.gitattri
 7. Гейт check:docs: какие проверки он не делает, хотя должен?
 8. Браузерный прогон: что он даёт сверх fetch и где начинается обман — цифры
    Lighthouse без эмуляции устройства легко выдать за PageSpeed.
-9. Прогон дал 15 ok, 1 fail (нет CSP) и 1 unknown (DNS) на статическом сайте.
-   Какие из этих ok получены слишком дёшево и что они не доказывают?
+9. Прогон дал 36 находок: 15 ok, 15 warn, 5 fail и 1 unknown (DNS) на
+   статическом сайте. Какие из этих ok получены слишком дёшево и что они не
+   доказывают?
 
 ================================================================================
 КОНЕЦ СРЕЗА

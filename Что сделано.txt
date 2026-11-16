@@ -6,6 +6,66 @@
 
 ---
 
+(Stage 6 — 16.11.2026) — **перенос проверок из `D:\nlbopt-main` и `D:\October CMS`: AUD-15 закрыт, AUD-17 сужен до ссылок и веса ассетов.**
+
+- `scripts/mail-policy.mjs` — новый файл, две чистые функции: `spfPolicy`
+  (`:1`) и `dmarcPolicy` (`:9`). Пороги: `-all` → `ok`, `~all` → `warn`,
+  `+all`/`?all` → `fail`, нет `all` → `warn`; `p=reject` → `ok`,
+  `p=quarantine` → `warn`, `p=none` → `fail`. Вынесены из коллектора, чтобы
+  ветки проверялись без DNS.
+- `scripts/audit-collect.mjs`: импорт `resolveCaa` (`:3`), `readDns` читает CAA
+  и TXT `_mta-sts.<host>` (`:117-119`), считает `spf_count`; `parseHtml`
+  (`:152`) собирает `<meta>` независимо от порядка атрибутов и читает `lang`,
+  viewport, OG, `twitter:card`, favicon, `meta robots`, `alt`, `width/height`,
+  `loading="lazy"`, подписи полей, mixed content (`:167-262`); проба мягкой 404
+  (`:287`), редирект HTTP→HTTPS (`:345`), счётчик `requests` (`:469`).
+- Новые находки: `spf_multiple` (`:937`), политики внутри `spf`/`dmarc`
+  (`:907-940`), `caa` (`:947`), `mta_sts` (`:956`), `lang`, `viewport`
+  (`:691-693`), `og` (`:703`), `favicon`, `meta_robots`, `title_length`,
+  `description_length`, `img_alt` (`:748-751`), `img_dim`, `img_lazy`,
+  `form_label` (`:763-766`), `mixed_content` (`:772-775`),
+  `version_disclosure` (`:781-782`), `html_cache`, `compression` (`:797-799`),
+  `soft_404` (`:882`), `https_redirect` (`:885-892`). Находка `robots` теперь
+  требует директиву `Sitemap:`, `sitemap` — XML-тип и пролог.
+- `scripts/audit-render.mjs`: `dnsBlock` (`:111`) — строки CAA и MTA-STS;
+  `speedBlock` (`:127`) — сжатие, `Cache-Control`, `requests`; `techBlock`
+  (`:159`) — версия в заголовках; `seoBlock` (`:170`) — язык, viewport, OG,
+  favicon, `meta robots`, три строки картинок, подписи полей, mixed content,
+  мягкая 404 и HTTP→HTTPS. `templates/audit-report.html` не менялся.
+- Проверено:
+  - `node tools/check-docs.mjs` → exit 0 (23 проверки, 0 проблем);
+  - `node --check` на `audit-collect`, `mail-policy`, `audit-render`,
+    `audit-summary` → exit 0;
+  - `scripts/mail-policy.mjs` — 11 случаев (`-all`, `~all`, нет `all`, `+all`,
+    `?all`, `p=reject`, `p=quarantine`, `p=none`, нет `p`, пробелы и регистр)
+    → 0 провалов;
+  - локальная фикстура `http://127.0.0.1:8099/` без интернета → 18 ожидаемых
+    уровней совпали: `viewport` `fail`, `soft_404` `fail`, `robots` `ok`,
+    `sitemap` `warn`, `https_redirect` `unknown`, остальные `warn`;
+  - живой прогон `https://www.ducasolutions.com/` → 36 находок (15 `ok`,
+    16 `warn`, 4 `fail`, 1 `unknown`), `requests` 5, отчёт 15 КБ,
+    0 плейсхолдеров, 0 внешних ресурсов; `soft_404: ok` (404),
+    `https_redirect: ok` (301), `mixed_content: fail` (2 ресурса по `http://`),
+    `ttfb` 1449 мс — `warn`.
+- Документация: `docs/checks.md` §1 (15 строк с RFC 7208/7489/8659/8461 и
+  WCAG), `docs/architecture.md` §3-4, `docs/report-format.md` §1,
+  `docs/qa-checklist.md` (этап 6), `README.md`, `AGENTS.md` §1/§5/§9,
+  `project-context.md` §4, `CHANGELOG.md` 0.5.0, `package.json` 0.5.0,
+  `Что доделать.txt` (AUD-15 удалён, AUD-16/17 уточнены).
+
+**Что не проверено:**
+
+- Живые ветки `ok`/`fail` для SPF, DMARC, CAA и MTA-STS: UDP 53 на этой машине
+  закрыт, отчёт честно показывает `dns: unknown`.
+- Ветки `ok` для `og`, `img_lazy`, `form_label` и `html_cache` на живом сайте не
+  наблюдались: у `ducasolutions.com` нет OG-тегов и lazy-loading, есть поле без
+  подписи и нет `Cache-Control`. Обратные ветки проверены фикстурой.
+- `ttfb` между прогонами плывёт (1545 мс в первом, 1449 мс во втором), поэтому
+  число `fail` в срезе зависит от порога 1500 мс — это не дефект сбора.
+- Внутренние ссылки и вес ассетов — остались в AUD-17.
+
+---
+
 (Stage 5 — 16.11.2026) — **«Выводы» локальной моделью: AUD-04 закрыт.**
 
 - `scripts/audit-summary.mjs` — новый скрипт: читает `audit-report/audit_data.json`,

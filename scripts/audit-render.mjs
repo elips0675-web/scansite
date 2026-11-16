@@ -118,18 +118,23 @@ const dnsBlock = dns.error
       <tr><th>NS</th><td>${cell((dns.ns || []).slice(0, 3).join(', '))}</td><td></td></tr>
       <tr><th>SPF</th><td>${cell(dns.spf)}</td><td>${statusOf('spf')}</td></tr>
       <tr><th>DMARC</th><td>${cell(dns.dmarc)}</td><td>${statusOf('dmarc')}</td></tr>
+      <tr><th>CAA</th><td>${cell((dns.caa || []).slice(0, 3).join('; '))}</td><td>${statusOf('caa')}</td></tr>
+      <tr><th>MTA-STS</th><td>${cell(dns.mta_sts)}</td><td>${statusOf('mta_sts')}</td></tr>
     </tbody>
   </table>
-  <p class="note">DNS и почта проверяются на самом имени, без обхода апекса: для поддомена отсутствие SPF/DMARC — <code>unknown</code>, а не <code>fail</code>. DNSSEC не проверяется: Node не отдаёт AD-bit. Запросов к сайту эта проверка не добавляет.</p>`;
+  <p class="note">DNS и почта проверяются на самом имени, без обхода апекса: для поддомена отсутствие SPF/DMARC — <code>unknown</code>, а не <code>fail</code>. SPF оценивается по квалификатору <code>all</code> (<code>-all</code> — <code>ok</code>, <code>~all</code> — <code>warn</code>, <code>+all</code>/<code>?all</code> — <code>fail</code>), DMARC — по политике <code>p=</code> (<code>reject</code> — <code>ok</code>, <code>quarantine</code> — <code>warn</code>, <code>none</code> — <code>fail</code>). DNSSEC не проверяется: Node не отдаёт AD-bit. Запросов к сайту эта проверка не добавляет.</p>`;
 
 const speedBlock = `<table>    <tbody>
       <tr><th>TTFB</th>${num(site.timing?.ttfb_ms, ' мс')}<td>${statusOf('ttfb')}</td></tr>
       <tr><th>Полный ответ</th>${num(site.timing?.total_ms, ' мс')}<td></td></tr>
       <tr><th>Вес HTML</th>${num(site.content?.bytes ? Math.round(site.content.bytes / 1024) : null, ' КБ')}<td>${statusOf('html_weight')}</td></tr>
       <tr><th>Инлайн-CSS</th>${num(site.content?.inline_style_bytes ? Math.round(site.content.inline_style_bytes / 1024) : 0, ' КБ')}<td></td></tr>
+      <tr><th>Сжатие HTML</th><td>${cell(site.headers?.['content-encoding'] || 'нет')}</td><td>${statusOf('compression')}</td></tr>
+      <tr><th>Cache-Control у HTML</th><td>${cell(site.headers?.['cache-control'])}</td><td>${statusOf('html_cache')}</td></tr>
       <tr><th>Скрипты / стили / картинки из HTML</th><td class="num">${esc(site.assets?.scripts ?? 0)} / ${esc(site.assets?.styles ?? 0)} / ${esc(site.assets?.images ?? 0)}</td><td></td></tr>
       <tr><th>SVG в разметке</th>${num(site.assets?.svg, ' шт.')}<td></td></tr>
       <tr><th>Внешние хосты</th>${num((site.assets?.external_hosts || []).length)}<td>${statusOf('third_party')}</td></tr>
+      <tr><th>Запросов на адрес</th>${num(site.requests, ' шт.')}<td></td></tr>
     </tbody>
   </table>`;
 
@@ -158,21 +163,34 @@ const techBlock = `<p>Сигнатуры: ${techList}</p>
       <tr><th>Сторонние (не основной домен)</th><td>${(site.assets?.third_party || []).length ? esc(site.assets.third_party.join(', ')) : 'нет'}</td></tr>
       <tr><th>Инлайн-скрипты (без src)</th><td>${esc(site.assets?.inline_scripts ?? 0)}</td></tr>
       <tr><th>Generator из meta</th><td>${cell(site.content?.generator)}</td></tr>
+      <tr><th>Версия в заголовках</th><td>${cell([site.headers?.server, site.headers?.['x-powered-by']].filter(Boolean).join(' ') || '—')}</td><td>${statusOf('version_disclosure')}</td></tr>
     </tbody>
   </table>`;
 
 const seoBlock = `<table>
     <tbody>
-      <tr><th>Title</th><td>${cell(site.content?.title)}</td><td>${statusOf('title')}</td></tr>
-      <tr><th>Description</th><td>${cell(site.content?.meta_description)}</td><td>${statusOf('description')}</td></tr>
+      <tr><th>Title</th><td>${cell(site.content?.title)}</td><td>${statusOf('title')} ${statusOf('title_length')}</td></tr>
+      <tr><th>Description</th><td>${cell(site.content?.meta_description)}</td><td>${statusOf('description')} ${statusOf('description_length')}</td></tr>
       <tr><th>Canonical</th><td>${cell(site.content?.canonical)}</td><td>${statusOf('canonical')}</td></tr>
-      <tr><th>Язык</th><td>${cell(site.content?.lang)}</td><td></td></tr>
+      <tr><th>Язык</th><td>${cell(site.content?.lang)}</td><td>${statusOf('lang')}</td></tr>
+      <tr><th>Viewport</th><td>${cell(site.content?.viewport)}</td><td>${statusOf('viewport')}</td></tr>
       <tr><th>H1</th><td>${esc(site.content?.h1_count ?? 0)}: ${cell((site.content?.h1 || []).join(' | '))}</td><td>${statusOf('h1')}</td></tr>
-      <tr><th>robots.txt</th><td>HTTP ${cell(site.seo?.robots_status)}</td><td>${statusOf('robots')}</td></tr>
-      <tr><th>sitemap.xml</th><td>HTTP ${cell(site.seo?.sitemap_status)}, ${esc(site.seo?.sitemap_urls ?? 0)} адресов, lastmod ${cell(site.seo?.sitemap_lastmod)}</td><td>${statusOf('sitemap')}</td></tr>
+      <tr><th>OG-теги</th><td>${cell([site.content?.og_title ? 'og:title' : null, site.content?.og_image ? 'og:image' : null, site.content?.twitter_card ? 'twitter:card' : null].filter(Boolean).join(', ') || 'нет')}</td><td>${statusOf('og')}</td></tr>
+      <tr><th>Favicon</th><td>${site.content?.favicon ? 'объявлен' : 'нет'}</td><td>${statusOf('favicon')}</td></tr>
+      <tr><th>meta robots</th><td>${cell(site.content?.robots_meta)}</td><td>${statusOf('meta_robots')}</td></tr>
+      <tr><th>Изображения без alt</th>${num(site.content?.images_no_alt)}<td>${statusOf('img_alt')}</td></tr>
+      <tr><th>Изображения без width/height</th>${num(site.content?.images_no_dim)}<td>${statusOf('img_dim')}</td></tr>
+      <tr><th>Изображения с loading="lazy"</th>${num(site.content?.images_lazy)}<td>${statusOf('img_lazy')}</td></tr>
+      <tr><th>Поля формы без подписи</th>${num(site.content?.controls_no_label)}<td>${statusOf('form_label')}</td></tr>
+      <tr><th>Mixed content (http://)</th>${num((site.content?.mixed_content || []).length)}<td>${statusOf('mixed_content')}</td></tr>
+      <tr><th>robots.txt</th><td>HTTP ${cell(site.seo?.robots_status)}, Sitemap ${site.seo?.robots_sitemap ? 'указан' : 'не указан'}</td><td>${statusOf('robots')}</td></tr>
+      <tr><th>sitemap.xml</th><td>HTTP ${cell(site.seo?.sitemap_status)}, ${cell(site.seo?.sitemap_type)}, ${esc(site.seo?.sitemap_urls ?? 0)} адресов, lastmod ${cell(site.seo?.sitemap_lastmod)}</td><td>${statusOf('sitemap')}</td></tr>
+      <tr><th>Несуществующий путь</th><td>HTTP ${cell(site.seo?.soft_404_status)}${site.seo?.soft_404_title ? `, title: ${cell(site.seo.soft_404_title)}` : ''}</td><td>${statusOf('soft_404')}</td></tr>
+      <tr><th>HTTP → HTTPS</th><td>${site.seo?.https_redirect === null ? 'не проверено' : site.seo?.https_redirect ? `HTTP ${cell(site.seo?.https_redirect_status)} → ${cell(site.seo?.https_redirect_to)}` : `нет перенаправления (HTTP ${cell(site.seo?.https_redirect_status)})`}</td><td>${statusOf('https_redirect')}</td></tr>
       <tr><th>JSON-LD</th><td>${(site.seo?.jsonld_types || []).length ? esc(site.seo.jsonld_types.join(', ')) : 'нет'}</td><td>${statusOf('jsonld')}</td></tr>
     </tbody>
-  </table>`;
+  </table>
+  <p class="note">Проба несуществующего пути — один GET на адрес: <code>200</code> — мягкая 404 (адрес-призрак попадает в индекс), <code>404</code>/<code>410</code> — норма. Проверка HTTP→HTTPS делает один запрос по <code>http://</code>; если порт 80 закрыт, статус <code>unknown</code>, а не выдуманный <code>ok</code>. Alt, размеры и lazy-loading считаются по статическому HTML: картинки, добавленные скриптами, сюда не попадают.</p>`;
 
 const paragraphs = (value) =>
   String(value)

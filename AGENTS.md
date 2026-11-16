@@ -10,10 +10,12 @@
 адресов он собирает пассивные факты о сайте в `audit_data.json` и рендерит
 `audit-report.html`.
 
-Состояние: Stage 4 — сбор (включая DNS, почту и ALPN), рендер, команда `/audit`
+Состояние: Stage 6 — сбор (заголовки, TLS, DNS и почта, скорость, периметр SEO и
+доступность), рендер, «Выводы» моделью и команда `/audit`
 (`https://github.com/elips0675-web/scansite`). Код: `scripts/audit-collect.mjs`,
-`scripts/audit-render.mjs`, `templates/audit-report.html`,
-`.opencode/commands/audit.md`. Артефакты — в `audit-report/`, в git не идут.
+`scripts/mail-policy.mjs`, `scripts/audit-render.mjs`, `scripts/audit-summary.mjs`,
+`templates/audit-report.html`, `.opencode/commands/audit.md`. Артефакты — в
+`audit-report/`, в git не идут.
 
 ### Границы
 
@@ -22,6 +24,7 @@
 | `D:\OpenCode сканер сайтов` | рабочая зона (этот каталог) |
 | `D:\swiftmatch1bdnoutprodpart1` | **только чтение**: чужой проект, свои правила и гейты |
 | `D:\October CMS` | **только чтение**: эталон документации, источник списка инструментов |
+| `D:\nlbopt-main` | **только чтение**: образцы проверок почты и HTML; без `LICENSE`, код не копируется |
 | `D:\3060OllamaClineOpenCode-main 1` | **только чтение**: комплект под 3060, источник чисел по модели |
 | `Аудит сайтов через OpenCode Генерация HTML-отчётов Qwen.html` | входной материал: предложение модели, истиной не является |
 
@@ -95,6 +98,7 @@
 ```powershell
 node tools/check-docs.mjs                  # карта, бэклог, заглушки, .gitignore
 node --check scripts/audit-collect.mjs     # синтаксис сбора
+node --check scripts/mail-policy.mjs       # синтаксис разбора SPF/DMARC
 node --check scripts/audit-render.mjs      # синтаксис рендера
 node --check scripts/audit-summary.mjs     # синтаксис выводов модели
 node scripts/audit-collect.mjs --url <адрес>   # живой прогон → audit-report/audit_data.json
@@ -136,7 +140,7 @@ node scripts/audit-summary.mjs --dry-run   # промт без обращени�
 
 ## 9. Карта кода
 
-Код есть с 16.11.2026 (Stage 4). Карта:
+Код есть с 16.11.2026 (Stage 6). Карта:
 
 | Что | Файл | Пункт | Состояние |
 |---|---|---|---|
@@ -148,6 +152,9 @@ node scripts/audit-summary.mjs --dry-run   # промт без обращени�
 | внешние API | `scripts/audit-external.mjs` | AUD-06 | не начат |
 | команда для OpenCode | `.opencode/commands/audit.md` | AUD-09 | сделано |
 | DNS, почта, ALPN | `scripts/audit-collect.mjs` (`readDns`, `tls.alpn`) | AUD-16 | код есть, ветви `ok`/`fail` не подтверждены |
+| политики SPF/DMARC | `scripts/mail-policy.mjs` | AUD-16 | сделано, 11 случаев без сети |
+| HTML и доступность | `scripts/audit-collect.mjs` (`parseHtml`) | AUD-15 | сделано |
+| мягкая 404, HTTP→HTTPS | `scripts/audit-collect.mjs` (`probeSoft404`, `probeHttpRedirect`) | AUD-17 | сделано; ссылки и вес ассетов остались |
 | гейт документации | `tools/check-docs.mjs` | Stage 0 | сделано |
 
 Правило правки: меняешь поле в `audit_data.json` — одной правкой обновляешь
