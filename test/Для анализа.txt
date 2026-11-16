@@ -87,7 +87,7 @@ curl падают.
   content{bytes, title, meta_description, canonical, h1_count, generator},
   assets{scripts, styles, images, external_hosts[], third_party[]},
   seo{robots_status, sitemap_status, sitemap_lastmod, has_robots_txt},
-  tech[], external{pagespeed, observatory, ssllabs}, findings[]
+  tech[], external{pagespeed, observatory, ssllabs, browser{}}, findings[]
 
 Правила контракта:
   - поле присутствует всегда; не смогли измерить — null, а не отсутствие ключа;
@@ -121,6 +121,10 @@ curl падают.
 Будущие гейты (после появления кода): node --check scripts/audit-collect.mjs,
 node scripts/audit-collect.mjs --self-test (фикстура вместо сети), проверка
 рендера на незаполненные плейсхолдеры и на внешние http-ссылки.
+
+Браузерный прогон гейтом не является: Lighthouse, trace и network живут только
+в живой сессии OpenCode (desktop), в CI их нет (AUD-14). Результат такого
+прогона попадает в external.browser и в отчёте помечается «вне CI».
 
 ================================================================================
 6. ОГРАНИЧЕНИЯ
@@ -157,6 +161,7 @@ P2
   AUD-11  актуализировать этот срез после первого кода
   AUD-12  README: реальные команды вместо «появится позже»
   AUD-13  .gitattributes: LF в рабочей копии, без предупреждений git add
+  AUD-14  браузерный прогон: lighthouse + trace + network (вручную, вне CI)
 
 Полные формулировки с доказательствами — «Что доделать.txt» в корне.
 Закрытые пункты живут в «Что сделано.txt»: AUD-08 (репозиторий) закрыт
@@ -204,6 +209,8 @@ P2
 6. Что в этом бэклоге лишнее (можно вообще не делать), а чего критически не
    хватает до первого реального прогона по 20 адресам?
 7. Гейт check:docs: какие проверки он не делает, хотя должен?
+8. Браузерный прогон: что он даёт сверх fetch и где начинается обман — цифры
+   Lighthouse без эмуляции устройства легко выдать за PageSpeed.
 
 ================================================================================
 КОНЕЦ СРЕЗА

@@ -72,7 +72,8 @@ audit-report.html            артефакт прогона (в git не идё
 | Ollama | `http://localhost:11434`, `qwen2.5-coder:14b` q4_K_M, ctx 12288 (`docs/local-model.md`) |
 | Cline (VS Code) | альтернатива для правки скриптов; промпт дороже по контексту |
 | Внешние API | PageSpeed Insights, Mozilla Observatory, SSL Labs — ключи только из `.env` (AUD-06) |
-| Chrome | `C:\Program Files\Google\Chrome\Application\chrome.exe` — для Lighthouse, если понадобится (отложено, `docs/roadmap.md`) |
+| Chrome | `C:\Program Files\Google\Chrome\Application\chrome.exe` — если понадобится Lighthouse CLI (отложено, `docs/roadmap.md`) |
+| Браузер OpenCode (desktop) | `browser.lighthouse`, `browser.trace.*`, `browser.network.*`, `browser.console`, `browser.screenshot` — вручную, вне CI (AUD-14) |
 
 ## 6. Чего здесь нет и не будет без нового пункта бэклога
 

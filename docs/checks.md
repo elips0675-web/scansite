@@ -26,6 +26,31 @@
 | Mozilla Observatory | **API** | `external.observatory` | < 50 → `fail`, 50–89 → `warn` | `:206-208`, `:155` |
 | SSL Labs | **API**, асинхронно | `external.ssllabs` | grade B и ниже → `warn` | `:211-213` |
 
+### 1.1 Браузерный прогон (вручную, вне CI)
+
+Живой сайт открывается в Chromium сессии OpenCode. Это **дополнение** к §1, а не
+замена: в `scripts/` браузер не встраивается, в CI его нет (AUD-14).
+
+| Проверка | Инструмент | Поле в JSON | Порог | Основание |
+|---|---|---|---|---|
+| Lighthouse: accessibility, SEO, best practices | `browser.lighthouse` | `external.browser.lighthouse` | accessibility < 90 → `warn`, < 70 → `fail` | `:200-202` |
+| Долгие задачи и раскладка времени | `browser.trace.start/stop/analyze` | `external.browser.trace` | long task > 200 мс → `warn` | `:200-202` |
+| Сеть: запросы, сторонние хосты, вес | `browser.network.list` | `assets`, `external.browser.network` | > 50 запросов → `warn` | `:232-234` |
+| Ошибки JS и console | `browser.console` | `external.browser.console` | любая ошибка → `warn` | нет в источнике |
+| DOM после JS: `title`, `h1`, `canonical`, JSON-LD | `browser.snapshot`, `browser.evaluate` | `content`, `seo` | как в §1 | `:227-229` |
+| Скриншот страницы | `browser.screenshot` | файл рядом с отчётом | — | нет в источнике |
+| JS-профиль, горячие функции | `browser.cpu.start/stop/analyze` | `external.browser.cpu` | — | нет в источнике |
+
+Ограничения, которые нельзя забывать:
+
+- `browser.lighthouse` **не эмулирует устройство и сеть** — его цифры не равны
+  PageSpeed Insights; сравнивать можно только прогон с прогоном.
+- Категории — accessibility, SEO, best practices. Performance собирается из
+  `browser.trace`, а не из оценки Lighthouse.
+- Одна вкладка за раз: обход 50 страниц — это 50 ручных шагов, а не краулер.
+- Скриншоты и трейсы остаются на машине сессии: в git не идут, в отчёт
+  попадает только встроенное изображение или ссылка.
+
 ## 2. Что НЕ делаем и почему
 
 | Инструмент | Почему нет | Основание |
@@ -33,7 +58,7 @@
 | `curl -sI` как основа | PowerShell подменяет `curl` алиасом `Invoke-WebRequest`, флаги падают; `curl.exe` есть, но Node даёт тот же результат без внешнего процесса | `:148` |
 | `openssl s_client` | в PATH отсутствует (`Get-Command openssl`, 16.11.2026); `node:tls` отдаёт протокол, издателя и срок | `:151` |
 | `whatweb` | Ruby-гем, на Windows не ставится (`Get-Command whatweb` — нет); замена — сигнатуры в коде | `:149` |
-| Lighthouse CLI / headless Chrome | требует Chromium-профиля и 30–60 с на страницу; в агентном цикле дорого. Отложено (`docs/roadmap.md`) | `:200-202` |
+| Lighthouse **CLI** / headless Chrome | требует установки и 30–60 с на страницу; в CI дорого. Браузерный прогон — отдельно, §1.1 | `:200-202` |
 | W3C Validator | SOAP/REST отдаёт шум по HTML5; сначала нужен разбор `title/h1/canonical` | `:227-229` |
 | urlscan.io | полезен, но требует токен и раскрывает адрес третьей стороне | `:232-234` |
 | Screaming Frog / Sitebulb | десктопные приложения, вне CLI | `:237-239` |
@@ -46,7 +71,9 @@
 1. заголовки и TLS (дешёвые, ловят главные дыры);
 2. скорость (`ttfb_ms`, вес, сторонние скрипты);
 3. SEO-периметр (`robots`, `sitemap`, `canonical`);
-4. внешние API — последними, потому что они медленные и с лимитами.
+4. внешние API — последними, потому что они медленные и с лимитами;
+5. браузерный прогон — только по запросу: медленно, невоспроизводимо и
+   требует живой сессии (§1.1).
 
 ## 4. Лимиты и вежливость
 

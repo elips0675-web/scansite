@@ -8,12 +8,34 @@
 | № | Вход | Кто делает | Выход | Пункт |
 |---|---|---|---|---|
 | 1 | `sites.json` | `scripts/audit-collect.mjs` | `audit_data.json` | AUD-01, AUD-02 |
+| 1б | `sites.json` | браузер сессии (`browser.*`), вручную | тот же JSON, блок `external.browser` | AUD-14 |
 | 2 | `audit_data.json` | `scripts/audit-external.mjs` (если есть ключи) | тот же JSON, блок `external` | AUD-06 |
 | 3 | `audit_data.json` + `templates/audit-report.html` | `scripts/audit-render.mjs` | `audit-report.html` | AUD-03 |
 | 4 | `audit_data.json` | `scripts/audit-summary.mjs` (модель) | раздел «Выводы» внутри отчёта | AUD-04 |
 
 Стадии 1–3 работают без интернета модели и без Ollama. Стадия 4 — опциональная:
 без неё отчёт валиден, в разделе «Выводы» стоит строка «модель не запускалась».
+
+## 1б. Браузерный прогон (опционально, вне CI)
+
+Стадия 1б не запускается скриптом: браузер принадлежит desktop-приложению
+OpenCode, поэтому прогон идёт в живой сессии агента и в CI не заходит. Нужна
+там, где `fetch` бессилен: сайт отдаёт контент только после JS.
+
+| Что делает | Инструмент |
+|---|---|
+| открыть адрес и дождаться загрузки | `browser.tabs.open`, `browser.navigate` |
+| Lighthouse: accessibility, SEO, best practices | `browser.lighthouse` |
+| трейс: long tasks, scripting/rendering/painting | `browser.trace.start/stop/analyze` |
+| сеть: запросы, хосты, коды, размеры | `browser.network.list`, `browser.network.get` |
+| ошибки JS | `browser.console` |
+| DOM после гидратации, JSON-LD | `browser.snapshot`, `browser.evaluate` |
+| скриншот в отчёт | `browser.screenshot` |
+
+Результат складывается в `sites[].external.browser`, а отчёт помечает такие
+данные строкой «браузерный прогон, вне CI»: читатель должен видеть, что число
+получено не тем же путём, что остальные. Эмуляции устройства нет, поэтому
+сравнивать с PageSpeed Insights нельзя — только прогон с прогоном.
 
 ## 2. Почему именно так
 
@@ -55,7 +77,7 @@
 | `assets` | объект | `scripts`, `styles`, `images`, `external_hosts[]`, `third_party[]` |
 | `seo` | объект | `robots_status`, `sitemap_status`, `sitemap_lastmod`, `has_robots_txt` |
 | `tech` | массив | сигнатуры: `wordpress`, `bitrix`, `nextjs`, `laravel`, `drupal` |
-| `external` | объект | `pagespeed`, `observatory`, `ssllabs` — по наличию ключей |
+| `external` | объект | `pagespeed`, `observatory`, `ssllabs`, `browser` — по наличию ключа или прогона |
 | `findings` | массив | `{id, level, check, message, evidence}` |
 
 Правила контракта:

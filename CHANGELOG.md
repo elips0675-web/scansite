@@ -17,6 +17,8 @@ Changelog, версии — SemVer.
 - Гейт документации `npm.cmd run check:docs` (`tools/check-docs.mjs`).
 - Публикация репозитория: https://github.com/elips0675-web/scansite
   (коммит `c92795a`, ветка `main`).
+- Браузерный прогон описан в документации: `docs/checks.md` §1.1,
+  `docs/architecture.md` §1б, AUD-14 в бэклоге.
 
 ### Not done
 
