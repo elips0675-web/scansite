@@ -10,9 +10,10 @@
 адресов он собирает пассивные факты о сайте в `audit_data.json` и рендерит
 `audit-report.html`.
 
-Состояние: Stage 1 — документация и опубликованный репозиторий
-(`https://github.com/elips0675-web/scansite`). Кода нет, каталога `scripts/`
-нет, JSON не существует.
+Состояние: Stage 3 — сбор, рендер и первый живой прогон
+(`https://github.com/elips0675-web/scansite`). Код: `scripts/audit-collect.mjs`,
+`scripts/audit-render.mjs`, `templates/audit-report.html`. Артефакты — в
+`audit-report/`, в git не идут.
 
 ### Границы
 
@@ -92,14 +93,18 @@
 Перед закрытием этапа — exit 0:
 
 ```powershell
-npm.cmd run check:docs                        # карта документации, бэклог, заглушки
-node --check scripts/audit-collect.mjs    # после AUD-01
-node scripts/audit-collect.mjs --self-test # после AUD-01: фикстура вместо сети
-npm.cmd run check:docs                        # повторно, после правок бэклога
+node tools/check-docs.mjs                  # карта, бэклог, заглушки, .gitignore
+node --check scripts/audit-collect.mjs     # синтаксис сбора
+node --check scripts/audit-render.mjs      # синтаксис рендера
+node scripts/audit-collect.mjs --url <адрес>   # живой прогон → audit-report/audit_data.json
+node scripts/audit-render.mjs              # → audit-report/audit-report.html
 ```
 
-Пока кода нет, живой гейт один — `check:docs`. Новая команда дописывается сюда
-в тот же день, когда появился скрипт, иначе гейт существует только в этом файле.
+Рендер сам возвращает exit 1, если в HTML остался `{{`, найден внешний ресурс
+или файл больше 150 КБ — это часть гейта, а не пожелание.
+
+Новая команда дописывается сюда в тот же день, когда появился скрипт, иначе
+гейт существует только в этом файле.
 
 ## 6. Конец этапа
 
@@ -129,15 +134,19 @@ npm.cmd run check:docs                        # повторно, после п�
 
 ## 9. Карта кода
 
-Кода пока нет. План (создаётся по пунктам бэклога):
+Код есть с 16.11.2026 (Stage 3). Карта:
 
-| Что | Файл (план) | Пункт |
-|---|---|---|
-| сбор данных | `scripts/audit-collect.mjs` | AUD-01 |
-| сигнатуры технологий | `scripts/audit-collect.mjs` | AUD-02 |
-| рендер отчёта | `scripts/audit-render.mjs`, `templates/audit-report.html` | AUD-03 |
-| выводы моделью | `scripts/audit-summary.mjs` | AUD-04 |
-| список адресов | `sites.json` | AUD-05 |
-| внешние API | `scripts/audit-external.mjs` | AUD-06 |
-| команда для OpenCode | `.opencode/commands/audit.md` | AUD-09 |
-| гейт документации | `tools/check-docs.mjs` | сделано, Stage 0 |
+| Что | Файл | Пункт | Состояние |
+|---|---|---|---|
+| сбор данных | `scripts/audit-collect.mjs` | AUD-01 | сделано |
+| сигнатуры технологий | `scripts/audit-collect.mjs` (`techOf`) | AUD-02 | сделано |
+| рендер отчёта | `scripts/audit-render.mjs`, `templates/audit-report.html` | AUD-03 | сделано |
+| выводы моделью | `scripts/audit-summary.mjs` | AUD-04 | не начат |
+| список адресов | `sites.json` | AUD-05 | `--sites` читается, файла и диффа нет |
+| внешние API | `scripts/audit-external.mjs` | AUD-06 | не начат |
+| команда для OpenCode | `.opencode/commands/audit.md` | AUD-09 | не начата |
+| гейт документации | `tools/check-docs.mjs` | Stage 0 | сделано |
+
+Правило правки: меняешь поле в `audit_data.json` — одной правкой обновляешь
+`docs/architecture.md` §3, `templates/audit-report.html` и `docs/checks.md` §1.
+Иначе отчёт и документация расходятся молча.

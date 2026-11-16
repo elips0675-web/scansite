@@ -5,6 +5,8 @@
   "type": "module",
   "description": "Пассивный аудит сайтов и генерация HTML-отчёта",
   "scripts": {
-    "check:docs": "node tools/check-docs.mjs"
+    "check:docs": "node tools/check-docs.mjs",
+    "audit": "node scripts/audit-collect.mjs",
+    "report": "node scripts/audit-render.mjs"
   }
 }

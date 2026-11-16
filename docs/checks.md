@@ -26,6 +26,11 @@
 | Mozilla Observatory | **API** | `external.observatory` | < 50 → `fail`, 50–89 → `warn` | `:206-208`, `:155` |
 | SSL Labs | **API**, асинхронно | `external.ssllabs` | grade B и ниже → `warn` | `:211-213` |
 
+Все проверки этой таблицы реализованы в `scripts/audit-collect.mjs` (16.11.2026):
+`node scripts/audit-collect.mjs --url <адрес>` (по умолчанию пишет
+`audit-report/audit_data.json`). Чего нет в
+коде — того нет и в отчёте: таблица и скрипт обновляются одной правкой.
+
 ### 1.1 Браузерный прогон (вручную, вне CI)
 
 Живой сайт открывается в Chromium сессии OpenCode. Это **дополнение** к §1, а не

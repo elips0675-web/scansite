@@ -7,10 +7,10 @@
 
 | № | Вход | Кто делает | Выход | Пункт |
 |---|---|---|---|---|
-| 1 | `sites.json` | `scripts/audit-collect.mjs` | `audit_data.json` | AUD-01, AUD-02 |
-| 1б | `sites.json` | браузер сессии (`browser.*`), вручную | тот же JSON, блок `external.browser` | AUD-14 |
+| 1 | `sites.json` | `scripts/audit-collect.mjs` | `audit-report/audit_data.json` | AUD-01, AUD-02 |
+| 1б | тот же адрес | браузер сессии (`browser.*`), вручную | `audit-report/browser_data.json` | AUD-14 |
 | 2 | `audit_data.json` | `scripts/audit-external.mjs` (если есть ключи) | тот же JSON, блок `external` | AUD-06 |
-| 3 | `audit_data.json` + `templates/audit-report.html` | `scripts/audit-render.mjs` | `audit-report.html` | AUD-03 |
+| 3 | `audit_data.json` + `templates/audit-report.html` | `scripts/audit-render.mjs` | `audit-report/audit-report.html` | AUD-03 |
 | 4 | `audit_data.json` | `scripts/audit-summary.mjs` (модель) | раздел «Выводы» внутри отчёта | AUD-04 |
 
 Стадии 1–3 работают без интернета модели и без Ollama. Стадия 4 — опциональная:
@@ -73,11 +73,11 @@ OpenCode, поэтому прогон идёт в живой сессии аге
 | `headers` | объект | только нужные заголовки, в нижнем регистре |
 | `tls` | объект или `null` | `protocol`, `issuer`, `not_before`, `not_after`, `days_left`, `san[]` |
 | `timing` | объект | `ttfb_ms`, `total_ms` |
-| `content` | объект | `bytes`, `title`, `meta_description`, `canonical`, `h1_count`, `generator` |
-| `assets` | объект | `scripts`, `styles`, `images`, `external_hosts[]`, `third_party[]` |
-| `seo` | объект | `robots_status`, `sitemap_status`, `sitemap_lastmod`, `has_robots_txt` |
-| `tech` | массив | сигнатуры: `wordpress`, `bitrix`, `nextjs`, `laravel`, `drupal` |
-| `external` | объект | `pagespeed`, `observatory`, `ssllabs`, `browser` — по наличию ключа или прогона |
+| `content` | объект | `bytes`, `title`, `meta_description`, `canonical`, `lang`, `h1_count`, `h1[]`, `generator`, `inline_style_bytes` |
+| `assets` | объект | `scripts`, `styles`, `images`, `inline_scripts`, `svg`, `external_hosts[]`, `third_party[]` |
+| `seo` | объект | `robots_status`, `sitemap_status`, `sitemap_urls`, `sitemap_lastmod`, `has_jsonld`, `jsonld_types[]` |
+| `tech` | массив | сигнатуры: `wordpress`, `bitrix`, `nextjs`, `laravel`, `drupal`, `vercel`, `x-powered-by` |
+| `external` | объект | `pagespeed`, `observatory`, `ssllabs` — по наличию ключей (AUD-06). Браузерные данные сюда не пишутся: рендер принимает их отдельным `browser_data.json` (AUD-14) |
 | `findings` | массив | `{id, level, check, message, evidence}` |
 
 Правила контракта:
@@ -104,8 +104,8 @@ OpenCode, поэтому прогон идёт в живой сессии аге
 
 ## 5. Идемпотентность и сравнение
 
-- `audit_data.json` перезаписывается целиком; суточная копия складывается в
-  `reports/<дата>/audit_data.json` (каталог в `.gitignore`).
+- `audit-report/audit_data.json` перезаписывается целиком; суточная копия
+  складывается в `audit-report/<дата>/audit_data.json` (папка в `.gitignore`).
 - Сравнение двух прогонов — `scripts/audit-render.mjs --compare <старый>`:
   дельта `ttfb_ms`, пропавшие и появившиеся заголовки, изменения сертификата.
 - Время прогона не влияет на порядок элементов: сортировка по `sites.json`.

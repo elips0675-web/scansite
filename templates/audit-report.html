@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Аудит {{host}} — {{generated_short}}</title>
+<style>
+  :root {
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --fail: #ef4444;
+    --unknown: #6b7280;
+    --ink: #111827;
+    --muted: #4b5563;
+    --line: #d1d5db;
+    --bg: #f9fafb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+    max-width: 980px;
+    background: #fff;
+    color: var(--ink);
+    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  h1 { font-size: 26px; line-height: 1.25; margin: 0 0 8px; word-break: break-word; }
+  h2 { font-size: 19px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 20px 0 8px; }
+  p { margin: 8px 0; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0; }
+  .note { color: var(--muted); font-size: 13px; }
+  .url { font-family: Consolas, "Courier New", monospace; word-break: break-all; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; word-break: break-word; }
+  th { background: var(--bg); font-weight: 600; }
+  td.num { text-align: right; white-space: nowrap; }
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .badge.ok { background: var(--ok); }
+  .badge.warn { background: var(--warn); }
+  .badge.fail { background: var(--fail); }
+  .badge.unknown { background: var(--unknown); }
+  .counters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .counters .badge { font-size: 14px; padding: 4px 12px; }
+  ol.top { margin: 8px 0 0 20px; padding: 0; }
+  ol.top li { margin: 6px 0; }
+  .verdict { border-left: 4px solid var(--line); padding: 4px 0 4px 12px; margin: 12px 0; }
+  .verdict.ok { border-color: var(--ok); }
+  .verdict.warn { border-color: var(--warn); }
+  .verdict.fail { border-color: var(--fail); }
+  .verdict.unknown { border-color: var(--unknown); }
+  footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 13px; }
+  @media print {
+    body { padding: 0; max-width: none; font-size: 12px; }
+    h2 { break-after: avoid; }
+    section, tr { break-inside: avoid; }
+    .badge { border: 1px solid #999; color: #111; }
+    footer { border-top: 1px solid #999; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Пассивный аудит: <span class="url">{{host}}</span></h1>
+  <p class="meta">
+    Адрес: <span class="url">{{url}}</span><br>
+    Прогон: {{generated_at}} · инструмент {{tool_version}} · Node {{node}}
+  </p>
+</header>
+
+<section>
+  <h2>1. Сводка</h2>
+  <div class="counters">{{counters}}</div>
+  <div class="verdict {{verdict_level}}">{{verdict_text}}</div>
+  <h3>Главное</h3>
+  <ol class="top">{{top_issues}}</ol>
+</section>
+
+<section>
+  <h2>2. Безопасность заголовков</h2>
+  <table>
+    <thead>
+      <tr><th>Заголовок</th><th>Значение</th><th>Статус</th><th>Что делать</th></tr>
+    </thead>
+    <tbody>
+      {{headers_table}}
+    </tbody>
+  </table>
+  <p class="note">Проверяется только наличие и форма заголовков ответа. Содержимое политик не исполняется: соответствие заявленного реальному поведению — отдельная ручная проверка.</p>
+</section>
+
+<section>
+  <h2>3. TLS</h2>
+  {{tls_block}}
+</section>
+
+<section>
+  <h2>4. Скорость и вес</h2>
+  {{speed_block}}
+  <h3>4.1 Браузерный прогон</h3>
+  {{browser_block}}
+</section>
+
+<section>
+  <h2>5. Технологии и ресурсы</h2>
+  {{tech_block}}
+</section>
+
+<section>
+  <h2>6. SEO-периметр</h2>
+  {{seo_block}}
+</section>
+
+<section>
+  <h2>7. Выводы</h2>
+  {{conclusions}}
+</section>
+
+<section>
+  <h2>8. Что не проверялось</h2>
+  {{not_checked}}
+</section>
+
+<footer>
+  Отчёт собран детерминированным рендером из <code>audit_data.json</code>. Внешних запросов нет: файл открывается офлайн.
+</footer>
+
+</body>
+</html>

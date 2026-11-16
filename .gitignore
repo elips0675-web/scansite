@@ -1,7 +1,6 @@
 node_modules/
 .env
 *.log
-tmp/
-reports/
-audit_data.json
-audit-report.html
+/tmp/
+/reports/
+/audit-report/

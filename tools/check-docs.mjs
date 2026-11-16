@@ -132,8 +132,14 @@ for (const rel of scanned) {
 
 if (exists('.gitignore')) {
   const ignore = text('.gitignore');
-  for (const entry of ['node_modules/', '.env', 'audit_data.json', 'audit-report.html']) {
+  for (const entry of ['node_modules/', '.env']) {
     if (!ignore.includes(entry)) problems.push(`.gitignore не содержит ${entry}`);
+  }
+  const artifactsIgnored =
+    ignore.includes('/audit-report/') ||
+    (ignore.includes('audit_data.json') && ignore.includes('audit-report.html'));
+  if (!artifactsIgnored) {
+    problems.push('.gitignore не покрывает артефакты прогона (нужен /audit-report/ или оба файла)');
   }
 }
 

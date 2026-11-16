@@ -2,8 +2,8 @@
 Проект: сканер сайтов (пассивный аудит + HTML-отчёт)
 Каталог: D:\OpenCode сканер сайтов
 Дата среза: 16.11.2026
-Состояние: Stage 1 — документация и репозиторий, кода нет.
-Репозиторий: https://github.com/elips0675-web/scansite (ветка main, коммит c92795a).
+Состояние: Stage 3 — сбор, рендер, первый живой прогон, код есть.
+Репозиторий: https://github.com/elips0675-web/scansite (ветка main).
 
 Файл самодостаточен: если модели не нужен конкретный файл, читать другие не
 обязательно. Все числа ниже взяты из фактического прогона, а не из старых
@@ -18,10 +18,15 @@
 (robots.txt, sitemap.xml, canonical, title, description, h1). Результат — один
 self-contained HTML-файл с приоритетами «что чинить первым».
 
-Кода нет. Есть:
-  - один входной материал — предложение внешней модели (Qwen), 14 453 байта,
-    268 строк;
-  - документация по схеме, принятой в двух других проектах владельца.
+Код есть с 16.11.2026, зависимостей ноль:
+  - scripts/audit-collect.mjs — сбор фактов -> audit-report/audit_data.json;
+  - templates/audit-report.html + scripts/audit-render.mjs — отчёт из JSON;
+  - tools/check-docs.mjs — гейт документации;
+  - входной материал — предложение внешней модели (Qwen), 14 453 байта, 268 строк.
+
+Первый живой прогон 16.11.2026: https://elvstudio.vercel.app/kit/ — 15 находок
+(14 ok, 1 fail: нет Content-Security-Policy), отчёт 12 КБ, ноль внешних запросов,
+TTFB 316 мс, HTML 90 032 байта (brotli на проводе ~21 КБ).
 
 Чего проект НЕ делает (зафиксировано): активное сканирование (SQLi/XSS),
 нагрузочные тесты, краулинг всего сайта, веб-интерфейс, хранение истории в БД.
@@ -66,28 +71,38 @@ curl падают.
    рекомендация ссылается на id находки из JSON.
 
 ================================================================================
-4. ПЛАНИРУЕМЫЙ КОНВЕЙЕР
+4. КОНВЕЙЕР (что уже работает)
 ================================================================================
 
-  sites.json                 вход: список адресов + allowlist
-  scripts/audit-collect.mjs  сбор фактов -> audit_data.json          (AUD-01-02)
-  scripts/audit-external.mjs PageSpeed / Observatory / SSL Labs      (AUD-06)
-  scripts/audit-render.mjs   JSON + шаблон -> audit-report.html      (AUD-03)
-  scripts/audit-summary.mjs  раздел «Выводы» через модель            (AUD-04)
-  templates/audit-report.html шаблон с плейсхолдерами {{...}}        (AUD-03)
-  tools/check-docs.mjs       гейт документации                       (сделано)
+  sites.json                 вход: список адресов + allowlist        (AUD-05: файла нет,
+                                                                    ключ --sites есть)
+  scripts/audit-collect.mjs  сбор -> audit-report/audit_data.json    сделано
+  scripts/audit-external.mjs PageSpeed / Observatory / SSL Labs      (AUD-06: не начат)
+  scripts/audit-render.mjs   JSON + шаблон -> audit-report/audit-report.html  сделано
+  scripts/audit-summary.mjs  раздел «Выводы» через модель            (AUD-04: не начат)
+  templates/audit-report.html шаблон с плейсхолдерами {{...}}        сделано
+  tools/check-docs.mjs       гейт документации                       сделано
+  audit-report/              артефакты прогона, в git не идут
 
 Контракт audit_data.json (верхний уровень):
   meta.generated_at, meta.tool_version, meta.node, meta.sites_count
   sites[] — по элементу на адрес, порядок совпадает с входом
 
-Элемент sites[]:
+Элемент sites[] (фактические поля, не план):
   url, final_url, status, error, redirects[], headers{}, tls{protocol, issuer,
-  not_before, not_after, days_left, san[]}, timing{ttfb_ms, total_ms},
-  content{bytes, title, meta_description, canonical, h1_count, generator},
-  assets{scripts, styles, images, external_hosts[], third_party[]},
-  seo{robots_status, sitemap_status, sitemap_lastmod, has_robots_txt},
-  tech[], external{pagespeed, observatory, ssllabs, browser{}}, findings[]
+  subject, not_before, not_after, days_left, san[]}, timing{ttfb_ms, total_ms},
+  content{bytes, title, meta_description, canonical, lang, h1_count, h1[],
+  generator, inline_style_bytes},
+  assets{scripts, styles, images, inline_scripts, svg, external_hosts[],
+  third_party[]},
+  seo{robots_status, sitemap_status, sitemap_urls, sitemap_lastmod, has_jsonld,
+  jsonld_types[]},
+  tech[], findings[]
+
+Пример находки (реальный прогон):
+  {"id":"csp","level":"fail","check":"CSP",
+   "message":"Content-Security-Policy отсутствует: нет защиты от внедрения скриптов",
+   "evidence":"content-security-policy: —"}
 
 Правила контракта:
   - поле присутствует всегда; не смогли измерить — null, а не отсутствие ключа;
@@ -95,17 +110,26 @@ curl падают.
   - level только: ok | warn | fail | unknown;
   - unknown никогда не считается ok и в отчёте рисуется серым.
 
-Отказы (не роняют прогон): DNS, TLS-рукопожатие, таймаут 10 с, цепочка
-редиректов > 5, ответ 403/429, отсутствие ключа API.
-Код выхода: 0 — собрано всё; 1 — не собрано ничего; 2 — ошибка аргументов.
+Отказы (не роняют прогон), проверено 16.11.2026 на
+https://nonexistent-domain-abc123xyz.invalid: error "dns", status null, exit 0.
+Также: таймаут 10 с, редиректы > 5, ответ 403/429, отсутствие ключа API.
+Код выхода: 0 — собрано всё; 1 — отчёт не прошёл проверки рендера; 2 — ошибка
+аргументов.
+
+Браузерные данные лежат отдельно (audit-report/browser_data.json) и в audit_data.json
+не пишутся: рендер принимает их ключом --browser (AUD-14).
 
 ================================================================================
 5. ГЕЙТЫ
 ================================================================================
 
-Живой гейт один (кода ещё нет):
+Живые гейты:
 
-  npm.cmd run check:docs      -> tools/check-docs.mjs
+  node tools/check-docs.mjs      документация: 23 проверки, exit 0
+  node --check scripts/audit-collect.mjs
+  node --check scripts/audit-render.mjs
+  рендер сам падает (exit 1): остались {{...}}, найден внешний ресурс
+  (script/link/src/@import/url(http)), файл больше 150 КБ
 
 Что он проверяет:
   - все обязательные файлы на месте (документация, журнал, бэклог, срез);
@@ -116,15 +140,14 @@ curl падают.
   - в журнале есть запись формата (Stage N — ДД.ММ.ГГГГ);
   - нет файлов-двойников (второй журнал) и нет .env;
   - нет незаполненных заготовок в документах;
-  - .gitignore покрывает node_modules/, .env, audit_data.json, audit-report.html.
+  - .gitignore покрывает node_modules/, .env, /tmp/, /reports/, /audit-report/.
 
-Будущие гейты (после появления кода): node --check scripts/audit-collect.mjs,
-node scripts/audit-collect.mjs --self-test (фикстура вместо сети), проверка
-рендера на незаполненные плейсхолдеры и на внешние http-ссылки.
+Не заведено: `--self-test` на фикстурах (AUD-10), CI (гейты локальные, как в двух
+других проектах владельца), проверка ссылок в готовом отчёте глазами.
 
 Браузерный прогон гейтом не является: Lighthouse, trace и network живут только
 в живой сессии OpenCode (desktop), в CI их нет (AUD-14). Результат такого
-прогона попадает в external.browser и в отчёте помечается «вне CI».
+прогона попадает в audit-report/browser_data.json и в отчёте помечается «вне CI».
 
 ================================================================================
 6. ОГРАНИЧЕНИЯ
@@ -145,27 +168,22 @@ node scripts/audit-collect.mjs --self-test (фикстура вместо сет
 ================================================================================
 
 P0
-  AUD-01  scripts/audit-collect.mjs — сбор фактов без curl/openssl
-  AUD-02  сигнатуры технологий вместо whatweb
-  AUD-03  templates/audit-report.html + scripts/audit-render.mjs
   AUD-04  раздел «Выводы» моделью, ≤ 300 слов
   AUD-05  sites.json + сравнение двух прогонов
 
 P1
   AUD-06  внешние API (PageSpeed, Observatory, SSL Labs), ключи из .env
-  AUD-07  вежливость: паузы, User-Agent, таймауты
+  AUD-07  вежливость: подтвердить 403/429 и паузы, вывести User-Agent в лог
   AUD-09  .opencode/commands/audit.md — команда /audit под Windows
 
 P2
   AUD-10  фикстуры и --self-test без сети
-  AUD-11  актуализировать этот срез после первого кода
-  AUD-12  README: реальные команды вместо «появится позже»
-  AUD-13  .gitattributes: LF в рабочей копии, без предупреждений git add
-  AUD-14  браузерный прогон: lighthouse + trace + network (вручную, вне CI)
+  AUD-14  браузерный сценарий + JS-тяжёлый адрес (первый прогон уже сделан)
 
 Полные формулировки с доказательствами — «Что доделать.txt» в корне.
-Закрытые пункты живут в «Что сделано.txt»: AUD-08 (репозиторий) закрыт
-16.11.2026.
+Закрыты 16.11.2026: AUD-01 (сбор), AUD-02 (сигнатуры), AUD-03 (рендер),
+AUD-08 (репозиторий), AUD-11 (этот срез), AUD-12 (команды в README),
+AUD-13 (.gitattributes).
 
 ================================================================================
 8. КАРТА КАТАЛОГА
@@ -175,7 +193,7 @@ P2
   AGENTS.md                  правила агента: границы, бюджет, гейты, конец этапа
   project-context.md         стек, решения с датами, структура, интеграции
   CHANGELOG.md               версии инструмента
-  Что доделать.txt           открытые пункты AUD-01..AUD-13 (AUD-08 закрыт)
+  Что доделать.txt           открытые пункты AUD-04..AUD-14 (закрытые — в журнале)
   Что сделано.txt            журнал этапов, сверху свежее
   docs/README.md             карта документации и правила гигиены
   docs/architecture.md       стадии, контракт JSON, отказы, идемпотентность
@@ -190,7 +208,13 @@ P2
   test/README.md             как пользоваться этим срезом
   test/Для анализа.txt       этот файл
   tools/check-docs.mjs       гейт документации
-  package.json               npm.cmd run check:docs
+  scripts/audit-collect.mjs  сбор фактов (fetch + node:tls), ноль зависимостей
+  scripts/audit-render.mjs   рендер отчёта, проверки на {{...}} и внешние ресурсы
+  templates/audit-report.html шаблон отчёта с плейсхолдерами {{...}}
+  audit-report/              артефакты прогона: audit_data.json,
+                             browser_data.json, audit-report.html (в git не идут)
+  .gitattributes             * text=auto eol=lf, бинарные типы
+  package.json               npm.cmd run check:docs; npm run audit / report
   Аудит сайтов через OpenCode Генерация HTML-отчётов Qwen.html
                              входной материал (предложение модели, не истина)
 
@@ -211,6 +235,8 @@ P2
 7. Гейт check:docs: какие проверки он не делает, хотя должен?
 8. Браузерный прогон: что он даёт сверх fetch и где начинается обман — цифры
    Lighthouse без эмуляции устройства легко выдать за PageSpeed.
+9. Первый живой прогон дал 14 ok и 1 fail (нет CSP) на статическом сайте. Какие
+   из этих ok получены слишком дёшево и что они не доказывают?
 
 ================================================================================
 КОНЕЦ СРЕЗА

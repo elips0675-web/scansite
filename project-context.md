@@ -45,23 +45,24 @@ Python 3.14 на машине есть, но **не используется**: 
 
 ## 4. Структура: факт и план
 
-Факт на 16.11.2026: `docs/` (11 файлов), `test/` (2 файла), `tools/` (1 файл),
+Факт на 16.11.2026 (Stage 3): `docs/` (11 файлов), `test/` (2 файла),
+`tools/` (1 файл), `scripts/` (2 файла), `templates/` (1 файл),
 `README.md`, `AGENTS.md`, `project-context.md`, `CHANGELOG.md`,
-`Что доделать.txt`, `Что сделано.txt`, `package.json`, `.gitignore` и один
-входной HTML.
+`Что доделать.txt`, `Что сделано.txt`, `package.json`, `.gitignore`,
+`.gitattributes` и один входной HTML.
 
 План — появляется по пунктам бэклога:
 
 ```
 sites.json                   вход: список адресов + allowlist          AUD-05
-scripts/audit-collect.mjs    сбор фактов -> audit_data.json            AUD-01, AUD-02
+scripts/audit-collect.mjs    сбор фактов -> audit_data.json            сделано
 scripts/audit-external.mjs   PageSpeed / Observatory / SSL Labs        AUD-06
-scripts/audit-render.mjs     audit_data.json + шаблон -> HTML          AUD-03
+scripts/audit-render.mjs     audit_data.json + шаблон -> HTML          сделано
 scripts/audit-summary.mjs    раздел «Выводы» через модель              AUD-04
-templates/audit-report.html  шаблон с плейсхолдерами                   AUD-03
+templates/audit-report.html  шаблон с плейсхолдерами                   сделано
 tools/check-docs.mjs         гейт документации                         сделано
-audit_data.json              артефакт прогона (в git не идёт)
-audit-report.html            артефакт прогона (в git не идёт)
+audit-report/                 артефакты прогона (в git не идут):
+                             audit_data.json, browser_data.json, audit-report.html
 ```
 
 ## 5. Точки интеграции

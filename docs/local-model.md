@@ -42,10 +42,11 @@ ollama ps   # колонка PROCESSOR обязана быть "100% GPU"
 
 ```
 шаг 1 (локально, без модели):
-  node scripts/audit-collect.mjs --sites sites.json --out audit_data.json
+  node scripts/audit-collect.mjs --sites sites.json
+  # результат: audit-report/audit_data.json
 
 шаг 2 (модель, ≤ 300 слов):
-  «Прочитай audit_data.json. Напиши раздел "Выводы": три главных пункта
+  «Прочитай audit-report/audit_data.json. Напиши раздел "Выводы": три главных пункта
    в порядке приоритета, каждый со ссылкой на id находки. Не выдумывай
    значений, которых нет в JSON. Не больше 300 слов.»
 ```

@@ -1,7 +1,7 @@
 # Установка и первый запуск
 
-Состояние на 16.11.2026: ставить почти нечего — кода нет. Раздел фиксирует,
-что на машине уже есть, чего нет и в каком порядке это появится.
+Состояние на 16.11.2026: код готов, ставить нечего — зависимостей ноль. Раздел
+фиксирует, что на машине уже есть, чего нет и в каком порядке запускается прогон.
 
 ## 1. Что уже есть (проверено 16.11.2026)
 
@@ -32,11 +32,13 @@
 2. **Репозиторий.** Создан и связан: `origin` →
    `https://github.com/elips0675-web/scansite`, ветка `main`, `.gitignore`
    на месте (Stage 1, 16.11.2026).
-3. **Гейт документации.** `npm.cmd run check:docs` — должен быть зелёным сразу,
-   до появления кода.
-4. **Ollama** (когда понадобится стадия 4): запустить приложение из трея,
+3. **Гейты.** `node tools/check-docs.mjs` — exit 0; `node --check` обоих скриптов.
+4. **Первый прогон.** `node scripts/audit-collect.mjs --url https://example.com/`
+   → `audit-report/audit_data.json`, затем `node scripts/audit-render.mjs`
+   → `audit-report/audit-report.html`. Зависимостей нет, `npm install` не нужен.
+5. **Ollama** (когда понадобится стадия 4): запустить приложение из трея,
    проверить `ollama list`. Моделей на этой машине пока нет.
-5. **Профиль модели** (на машине с 3060, не здесь): по
+6. **Профиль модели** (на машине с 3060, не здесь): по
    `D:\3060OllamaClineOpenCode-main 1\02-Установить-локально.bat`, профиль [1],
    затем `ollama ps` → `100% GPU`.
 
@@ -44,9 +46,11 @@
 
 ```powershell
 cd "D:\OpenCode сканер сайтов"
-node -v                     # v24.x
-npm.cmd run check:docs          # exit 0, без FAIL
-ollama ps                   # пусто — нормально, модель не запущена
+node -v                          # v24.x
+node tools/check-docs.mjs        # exit 0, без FAIL
+node scripts/audit-collect.mjs --url https://example.com/   # audit-report/audit_data.json
+node scripts/audit-render.mjs    # audit-report/audit-report.html
+ollama ps                        # пусто — нормально, модель не запущена
 ```
 
 ## 5. Частые сбои

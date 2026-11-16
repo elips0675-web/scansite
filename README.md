@@ -4,12 +4,13 @@
 проверяемые факты (заголовки, TLS, скорость, периметр SEO) в `audit_data.json`
 и рендерит из него один самодостаточный `audit-report.html`.
 
-**Состояние: Stage 1 — документация и опубликованный репозиторий**
-(https://github.com/elips0675-web/scansite, коммит `c92795a`). Кода нет. В
-каталоге один входной файл — `Аудит сайтов через OpenCode Генерация
-HTML-отчётов Qwen.html` (14 453 байта, 268 строк): предложение внешней модели,
-не реализация. Каталога `scripts/` нет, `audit_data.json` не существует, ни
-одна проверка не написана.
+**Состояние: Stage 3 — сбор, рендер и первый живой прогон**
+(https://github.com/elips0675-web/scansite). Код есть: `scripts/audit-collect.mjs`
+(все проверки `docs/checks.md` §1, ноль зависимостей), `templates/audit-report.html`
+и `scripts/audit-render.mjs` (детерминированный рендер, проверка на незаполненные
+плейсхолдеры и внешние ресурсы), гейт `tools/check-docs.mjs`. Первый реальный
+прогон — `https://elvstudio.vercel.app/kit/`: 15 находок (14 `ok`, 1 `fail` —
+нет `Content-Security-Policy`), отчёт 12 КБ, ноль внешних запросов.
 
 ## Зачем
 
@@ -35,22 +36,33 @@ HTML-отчётов Qwen.html` (14 453 байта, 268 строк): предло
 |---|---|
 | 0. Документация и правила | **сделана 16.11.2026**, гейт `npm.cmd run check:docs` зелёный |
 | Репозиторий (AUD-08) | **сделан 16.11.2026**: https://github.com/elips0675-web/scansite, коммит `c92795a` |
-| 1. Сбор данных (AUD-01, AUD-02) | не начат |
-| 2. Отчёт из шаблона (AUD-03, AUD-05) | не начат |
+| 1. Сбор данных (AUD-01, AUD-02) | **сделан 16.11.2026**: `scripts/audit-collect.mjs`, TLS и сигнатуры технологий встроены |
+| 2. Отчёт из шаблона (AUD-03) | **сделан 16.11.2026**: `templates/audit-report.html` + `scripts/audit-render.mjs` |
+| 2б. Сравнение прогонов (AUD-05) | не начат: нужен `sites.json` и диф двух JSON |
 | 3. Выводы моделью (AUD-04) | не начат |
 | 4. Внешние API (AUD-06) | не начат |
 
 ## Быстрый старт
 
-Сейчас живая команда одна — гейт документации:
+Зависимостей нет: нужен только Node 24 (в нём есть `fetch` и `node:tls`).
 
 ```powershell
 git clone https://github.com/elips0675-web/scansite.git
 cd scansite
 npm.cmd run check:docs
+
+# 1. Сбор фактов по одному адресу → audit-report/audit_data.json
+node scripts/audit-collect.mjs --url https://example.com/
+
+# 2. Отчёт → audit-report/audit-report.html
+#    браузерный блок подхватится сам, если рядом лежит audit-report/browser_data.json
+node scripts/audit-render.mjs
 ```
 
-Сбор запускать ещё нечем: `scripts/audit-collect.mjs` не написан (AUD-01).
+`audit-report/` — папка артефактов прогона (`audit_data.json`,
+`browser_data.json`, `audit-report.html`), в git не попадает (`.gitignore`).
+Список адресов `--sites sites.json` поддержан коллектором, но сам файл и
+сравнение прогонов — AUD-05.
 
 ## Обвязка машины (проверено 16.11.2026)
 
