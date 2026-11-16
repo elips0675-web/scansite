@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аудит сайтов через OpenCode: Руководство и HTML-отчёт</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #1f2937;
+            --accent-color: #2563eb;
+            --border-color: #e5e7eb;
+            --code-bg: #f3f4f6;
+            --card-bg: #f9fafb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 24px;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: var(--accent-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-top: 0;
+        }
+        h2 {
+            margin-top: 32px;
+            color: #111827;
+            font-size: 1.5em;
+        }
+        h3 {
+            color: #374151;
+            font-size: 1.2em;
+        }
+        .intro-box {
+            background-color: var(--card-bg);
+            border-left: 4px solid var(--accent-color);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            border-radius: 6px;
+        }
+        .method-card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            background-color: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        code {
+            background-color: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+            color: #be185d;
+        }
+        pre {
+            background-color: var(--code-bg);
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            font-size: 0.9em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.95em;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: var(--card-bg);
+            font-weight: 600;
+            color: #374151;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: white;
+        }
+        .badge-auto { background-color: var(--success-color); }
+        .badge-manual { background-color: var(--warning-color); }
+        .badge-no { background-color: var(--danger-color); }
+        
+        .strategy-list {
+            background-color: var(--card-bg);
+            padding: 20px 20px 20px 40px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        .strategy-list li {
+            margin-bottom: 10px;
+        }
+        .footer {
+            margin-top: 48px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            color: #6b7280;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 Аудит сайтов через OpenCode: Генерация HTML-отчётов</h1>
+    
+    <div class="intro-box">
+        <strong>Да, это возможно.</strong> OpenCode специально спроектирован для оркестрации CLI-инструментов и создания артефактов. Вы можете прописать промпт в виде кастомной слэш-команды (например, <code>/audit</code>) или попросить агента написать Python-скрипт, который соберёт данные из вашего списка и сгенерирует готовый HTML-отчёт.
+        <br><br>
+        <em>Контекст пользователя:</em> При работе с локальными моделями на RTX 3060 (12GB VRAM) разбивайте задачу на этапы (сбор данных → генерация HTML), чтобы избежать переполнения контекста.
+    </div>
+
+    <h2>🎯 Вариант 1: Кастомная слэш-команда (Рекомендуемый)</h2>
+    <div class="method-card">
+        <p>Создайте файл <code>commands/audit.md</code> в папке <code>~/.config/opencode/commands/</code> или <code>.opencode/commands/</code> со следующим содержимым:</p>
+        <pre><code>---
+description: Пассивный аудит сайта (скорость, безопасность, SEO) с HTML-отчётом
+agent: build
+---
+Проанализируй публичный сайт по адресу: $ARGUMENTS
+
+Выполни следующие шаги, используя доступные shell-инструменты. 
+⚠️ НЕ выполняй активное сканирование уязвимостей (SQLi, XSS) или нагрузочное тестирование без явного разрешения.
+
+1. **Технологии и заголовки:** 
+   - Выполни `curl -sI $ARGUMENTS` для проверки HTTP-заголовков (HSTS, CSP, Referrer-Policy).
+   - Если установлен `whatweb`, выполни `whatweb $ARGUMENTS`.
+2. **SSL/TLS:** 
+   - Проверь базовые данные сертификата через `openssl s_client`.
+3. **Скорость (TTFB):** 
+   - Зафиксируй время ответа: `curl -o /dev/null -s -w "TTFB: %{time_starttransfer}s\nTotal: %{time_total}s\n" $ARGUMENTS`.
+4. **Внешние API (пассивно):** 
+   - Сделай запрос к Mozilla Observatory API (POST + GET по hostname).
+   - Если есть API-ключ, запроси данные через Google PageSpeed Insights API.
+
+На основе собранных данных составь структурированный HTML-отчёт. 
+Используй инлайн-CSS для стилизации (светлая тема, чёткая типографика, цветовая индикация статусов). 
+Отчёт должен содержать разделы: «Технологии», «Безопасность заголовков», «SSL», «Скорость» и «Выводы». 
+Сохраните итоговый отчёт в файл `audit-report.html` в текущей директории.</code></pre>
+        <p><strong>Использование:</strong> В интерфейсе OpenCode просто наберите <code>/audit https://example.com</code></p>
+    </div>
+
+    <h2>📦 Вариант 2: Python-скрипт оркестрации</h2>
+    <div class="method-card">
+        <p>Если проверок много, попросите OpenCode: <em>"Напиши модульный Python-скрипт на asyncio + aiohttp, который опрашивает API PageSpeed Insights, SSL Labs и Mozilla Observatory для заданного URL, а затем рендерит красивый HTML-отчёт через Jinja2 с Tailwind CSS"</em>. Это надёжнее для больших объёмов данных, чем чистый shell в промпте.</p>
+    </div>
+
+    <h2>🛡️ Интеграция инструментов из вашего списка</h2>
+    <p>Не все инструменты из документа можно автоматизировать через OpenCode. Вот реалистичная карта автоматизации:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Категория</th>
+                <th>Инструмент (из документа)</th>
+                <th>Авто-через OpenCode</th>
+                <th>Как реализовать</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td rowspan="4"><strong>Производительность</strong></td>
+                <td>PageSpeed Insights</td>
+                <td><span class="badge badge-auto">API</span></td>
+                <td>HTTP-запрос к Google API (нужен ключ)</td>
+            </tr>
+            <tr>
+                <td>cURL (TTFB)</td>
+                <td><span class="badge badge-auto">CLI</span></td>
+                <td>Команда <code>curl -w</code></td>
+            </tr>
+            <tr>
+                <td>WhatWeb</td>
+                <td><span class="badge badge-auto">CLI</span></td>
+                <td>Команда <code>whatweb url</code></td>
+            </tr>
+            <tr>
+                <td>Chrome DevTools / Lighthouse CI</td>
+                <td><span class="badge badge-manual">Сложно</span></td>
+                <td>Требует headless-браузера, лучше вынести в отдельный Node.js скрипт</td>
+            </tr>
+            <tr>
+                <td rowspan="4"><strong>Безопасность</strong></td>
+                <td>Mozilla Observatory</td>
+                <td><span class="badge badge-auto">API</span></td>
+                <td>POST/GET запрос к api.security.mozilla.org</td>
+            </tr>
+            <tr>
+                <td>SSL Labs</td>
+                <td><span class="badge badge-auto">API</span></td>
+                <td>Запрос к <code>ssllabs.com/api/v3/analyze</code></td>
+            </tr>
+            <tr>
+                <td>Security Headers / REDbot</td>
+                <td><span class="badge badge-auto">CLI</span></td>
+                <td>Анализ вывода <code>curl -I</code> на наличие HSTS, CSP, Vary</td>
+            </tr>
+            <tr>
+                <td>OWASP ZAP / k6</td>
+                <td><span class="badge badge-no">Нет (Опасно)</span></td>
+                <td>Требует активного сканирования/нагрузки. Только с письменного разрешения владельца!</td>
+            </tr>
+            <tr>
+                <td rowspan="3"><strong>SEO / Тех.</strong></td>
+                <td>W3C Validator</td>
+                <td><span class="badge badge-auto">API</span></td>
+                <td>SOAP/REST API валидатора</td>
+            </tr>
+            <tr>
+                <td>urlscan.io</td>
+                <td><span class="badge badge-auto">API</span></td>
+                <td>API для поиска сторонних скриптов и поддоменов</td>
+            </tr>
+            <tr>
+                <td>Screaming Frog / Sitebulb</td>
+                <td><span class="badge badge-no">Нет</span></td>
+                <td>Десктопные приложения, не автоматизируются через CLI OpenCode</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>💡 Рекомендованная стратегия проверок (из документа)</h2>
+    <ol class="strategy-list">
+        <li><strong>Первым делом:</strong> Mozilla Observatory + SSL Labs. <em>(Цель: выявить отсутствие HSTS/CSP, подтвердить TLS 1.3).</em></li>
+        <li><strong>Затем:</strong> Lighthouse / PageSpeed Insights с эмуляцией 4G. <em>(Главный резерв часто в картинках и блокирующих скриптах).</em></li>
+        <li><strong>Постоянный контроль:</strong> UptimeRobot + Snyk (в CI/CD).</li>
+        <li><strong>Периодически (вручную):</strong> Screaming Frog (обратить внимание на sitemap 2018 года!), axe DevTools, OWASP ZAP (пассивно, раз в месяц).</li>
+        <li><strong>После любых изменений:</strong> PageSpeed Insights для контроля динамики.</li>
+    </ol>
+
+    <h2>⚠️ Важные ограничения</h2>
+    <div class="intro-box" style="border-left-color: var(--warning-color);">
+        <ul>
+            <li><strong>Пассивный анализ:</strong> OpenCode — оркестратор, а не сканер уязвимостей. Он не будет самостоятельно проводить активное сканирование (SQLi, XSS) или нагрузочные тесты без явных инструкций и соответствующих локальных инструментов.</li>
+            <li><strong>Локальные сайты:</strong> Внешние API (PageSpeed, SSL Labs) не увидят внутренние ресурсы (например, <code>nlb</code> из вашего документа). Для них используйте локальный запуск <code>lighthouse-cli</code> или <code>curl</code>, инициируемый OpenCode.</li>
+            <li><strong>Управление контекстом (RTX 3060):</strong> Не просите модель "проверить всё сразу и написать отчёт". Сначала дайте команду собрать данные и сохранить их в <code>audit_data.json</code>. Затем вторым промптом попросите: "Прочитай audit_data.json и сгенерируй HTML-отчёт". Это гарантирует качество и избежит обрывов генерации.</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        Сформировано на основе анализа документа «Инструменты для проверки.docx» и архитектурных возможностей OpenCode / локальных LLM.
+    </div>
+</div>
+
+</body>
+</html>
