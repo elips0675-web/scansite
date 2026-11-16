@@ -7,77 +7,265 @@
 <title>Аудит {{host}} — {{generated_short}}</title>
 <style>
   :root {
-    --ok: #10b981;
-    --warn: #f59e0b;
-    --fail: #ef4444;
-    --unknown: #6b7280;
-    --ink: #111827;
-    --muted: #4b5563;
-    --line: #d1d5db;
-    --bg: #f9fafb;
+    --ok: #0e9f6e;
+    --warn: #c27803;
+    --fail: #d0383b;
+    --unknown: #5b6472;
+    --ok-bg: #e7f7f0;
+    --warn-bg: #fdf4e3;
+    --fail-bg: #fdeceb;
+    --unknown-bg: #eef0f4;
+    --ink: #101828;
+    --muted: #5b6472;
+    --line: #e4e9f0;
+    --line-soft: #f1f4f9;
+    --line-strong: #cfd8e3;
+    --accent: #1f3a5f;
+    --radius: 16px;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0 auto;
-    padding: 32px 24px 64px;
-    max-width: 980px;
-    background: #fff;
+    margin: 0;
+    padding: 28px 16px 56px;
+    background: #eef1f6;
     color: var(--ink);
-    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font: 14.5px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  h1 { font-size: 26px; line-height: 1.25; margin: 0 0 8px; word-break: break-word; }
-  h2 { font-size: 19px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
-  h3 { font-size: 16px; margin: 20px 0 8px; }
-  p { margin: 8px 0; }
-  .meta { color: var(--muted); font-size: 13px; margin: 0; }
-  .note { color: var(--muted); font-size: 13px; }
-  .url { font-family: Consolas, "Courier New", monospace; word-break: break-all; }
-  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
-  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; word-break: break-word; }
-  th { background: var(--bg); font-weight: 600; }
-  td.num { text-align: right; white-space: nowrap; }
-  .badge {
-    display: inline-block;
-    padding: 1px 8px;
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 600;
+  .sheet {
+    max-width: 1040px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: 0 12px 32px rgba(16, 24, 40, .08), 0 2px 6px rgba(16, 24, 40, .04);
+    overflow: hidden;
+  }
+  .hero {
+    padding: 28px 34px 24px;
+    background: linear-gradient(135deg, #16263d 0%, #22456d 62%, #2b5486 100%);
     color: #fff;
+  }
+  .hero h1 { margin: 0 0 12px; font-size: 24px; line-height: 1.3; font-weight: 650; letter-spacing: -.01em; word-break: break-word; }
+  .hero .meta { margin: 0; color: #c3d2e4; font-size: 12.5px; line-height: 1.7; }
+  .hero .url { color: #fff; }
+  .content { padding: 6px 34px 34px; }
+
+  h2 {
+    position: relative;
+    margin: 36px 0 12px;
+    padding: 0 0 8px 15px;
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: -.01em;
+    border-bottom: 1px solid var(--line);
+  }
+  h2::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 3px;
+    width: 4px;
+    height: 17px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+  h3 { margin: 22px 0 8px; font-size: 14.5px; font-weight: 650; color: #2b3648; letter-spacing: .01em; }
+  h4 { margin: 18px 0 6px; font-size: 14px; font-weight: 650; }
+
+  p { margin: 9px 0; }
+  .meta { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .note { color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+  .url { font-family: ui-monospace, Consolas, "Courier New", monospace; word-break: break-all; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 8px;
+    font-size: 13.5px;
+  }
+  caption { caption-side: top; text-align: left; padding-bottom: 6px; font-size: 12px; color: var(--muted); }
+  thead th {
+    padding: 9px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--line-soft);
+    border-bottom: 1px solid var(--line-strong);
     white-space: nowrap;
   }
-  .badge.ok { background: var(--ok); }
-  .badge.warn { background: var(--warn); }
-  .badge.fail { background: var(--fail); }
-  .badge.unknown { background: var(--unknown); }
-  .counters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-  .counters .badge { font-size: 14px; padding: 4px 12px; }
-  ol.top { margin: 8px 0 0 20px; padding: 0; }
-  ol.top li { margin: 6px 0; }
-  .verdict { border-left: 4px solid var(--line); padding: 4px 0 4px 12px; margin: 12px 0; }
-  .verdict.ok { border-color: var(--ok); }
-  .verdict.warn { border-color: var(--warn); }
-  .verdict.fail { border-color: var(--fail); }
-  .verdict.unknown { border-color: var(--unknown); }
-  footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
-  code { font-family: Consolas, "Courier New", monospace; font-size: 13px; }
+  tbody th, tbody td {
+    padding: 9px 12px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--line);
+    word-break: break-word;
+  }
+  tbody th { font-weight: 600; color: #26303f; width: 30%; }
+  tbody tr:nth-child(even) { background: #fbfcfe; }
+  tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 11.5px;
+    font-weight: 650;
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+  .badge.ok { color: #0a6e4e; background: var(--ok-bg); border-color: #bfe6d8; }
+  .badge.warn { color: #8a5300; background: var(--warn-bg); border-color: #f0d9ab; }
+  .badge.fail { color: #9d2427; background: var(--fail-bg); border-color: #f3c3c1; }
+  .badge.unknown { color: #47505f; background: var(--unknown-bg); border-color: #d5dae2; }
+
+  .counters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 14px 0 18px;
+  }
+  .counters .badge {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+  .counters .badge b { font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; }
+
+  .verdict {
+    margin: 14px 0;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--unknown);
+    background: #fbfcfe;
+    font-size: 14px;
+  }
+  .verdict.ok { border-left-color: var(--ok); background: #f3fbf7; }
+  .verdict.warn { border-left-color: var(--warn); background: #fefaf1; }
+  .verdict.fail { border-left-color: var(--fail); background: #fef5f4; }
+  .verdict.unknown { border-left-color: var(--unknown); background: #f7f8fa; }
+
+  ol.top { list-style: none; counter-reset: top; margin: 10px 0 0; padding: 0; }
+  ol.top li { counter-increment: top; position: relative; padding: 6px 0 6px 38px; }
+  ol.top li::before {
+    content: counter(top);
+    position: absolute;
+    left: 0;
+    top: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #eaeff7;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .model-text {
+    margin: 12px 0;
+    padding: 14px 18px;
+    background: #f7f9fc;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .model-text p:first-child { margin-top: 0; }
+  .model-text p:last-child { margin-bottom: 0; }
+
+  code {
+    padding: 1px 5px;
+    border-radius: 6px;
+    background: #f1f4f9;
+    border: 1px solid #e3e8ef;
+    font-family: ui-monospace, Consolas, "Courier New", monospace;
+    font-size: 12.5px;
+  }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line-strong);
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 12px 8px 32px; }
+    .hero { padding: 20px 18px 18px; }
+    .hero h1 { font-size: 19px; }
+    .counters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .content { padding: 4px 16px 24px; }
+    h2 { font-size: 16.5px; margin-top: 28px; }
+    table { font-size: 12.5px; }
+    thead th, tbody th, tbody td { padding: 7px 8px; }
+    tbody th { width: auto; }
+  }
+
+  @page { margin: 14mm; }
+
   @media print {
-    body { padding: 0; max-width: none; font-size: 12px; }
-    h2 { break-after: avoid; }
-    section, tr { break-inside: avoid; }
-    .badge { border: 1px solid #999; color: #111; }
+    body { padding: 0; background: #fff; font-size: 11.5px; color: #000; }
+    .sheet { max-width: none; border-radius: 0; box-shadow: none; }
+    .hero {
+      padding: 0 0 10px;
+      background: #fff;
+      color: #000;
+      border-bottom: 2px solid #000;
+      border-radius: 0;
+    }
+    .hero .meta, .hero .url { color: #222; }
+    .content { padding: 0; }
+    h2 { break-after: avoid; margin-top: 20px; }
+    h2::before { background: #000; }
+    h3 { break-after: avoid; }
+    section, tr, .model-text, .verdict { break-inside: avoid; }
+    thead th { background: #fff; border-bottom: 1px solid #666; color: #000; }
+    tbody tr:nth-child(even) { background: #fff; }
+    tbody th, tbody td { border-bottom: 1px solid #ccc; }
+    .badge {
+      background: #fff !important;
+      border: 1px solid #777 !important;
+      color: #000 !important;
+    }
+    .counters .badge { padding: 4px 10px; display: inline-block; }
+    .counters .badge b { font-size: 14px; display: inline; margin-right: 4px; }
+    .verdict { background: #fff !important; border: 1px solid #999; border-left-width: 4px; }
+    ol.top li::before { background: #fff; border: 1px solid #777; }
+    .model-text { background: #fff; border: 1px solid #bbb; }
+    code { background: #fff; border: 0; padding: 0; }
     footer { border-top: 1px solid #999; }
   }
 </style>
 </head>
 <body>
+<main class="sheet">
 
-<header>
+<header class="hero">
   <h1>Пассивный аудит: <span class="url">{{host}}</span></h1>
   <p class="meta">
     Адрес: <span class="url">{{url}}</span><br>
     Прогон: {{generated_at}} · инструмент {{tool_version}} · Node {{node}}
   </p>
 </header>
+
+<div class="content">
 
 <section>
   <h2>1. Сводка</h2>
@@ -138,5 +326,7 @@
   Отчёт собран детерминированным рендером из <code>audit_data.json</code>. Внешних запросов нет: файл открывается офлайн.
 </footer>
 
+</div>
+</main>
 </body>
 </html>

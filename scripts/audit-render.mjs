@@ -70,7 +70,7 @@ for (const finding of site.findings || []) {
   if (counts[finding.level] !== undefined) counts[finding.level] += 1;
 }
 const counters = ['fail', 'warn', 'unknown', 'ok']
-  .map((level) => `<span class="badge ${level}">${level} ${counts[level]}</span>`)
+  .map((level) => `<span class="badge ${level}"><b>${counts[level]}</b><span>${level}</span></span>`)
   .join('\n  ');
 
 const priority = { fail: 0, warn: 1, unknown: 2, ok: 3 };
