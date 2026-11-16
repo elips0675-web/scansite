@@ -175,9 +175,13 @@ P1
   AUD-06  внешние API (PageSpeed, Observatory, SSL Labs), ключи из .env
   AUD-07  вежливость: подтвердить 403/429 и паузы, вывести User-Agent в лог
   AUD-09  .opencode/commands/audit.md — команда /audit под Windows
+  AUD-15  находки без новых запросов: кэш, версия в Server, mixed content,
+          alt/label, OG/Twitter, favicon, noindex, длина title/description
+  AUD-16  DNS и почта: A/AAAA/MX/NS/TXT, SPF, DMARC, IPv6, ALPN (h2)
 
 P2
   AUD-10  фикстуры и --self-test без сети
+  AUD-17  проба 404, 20 внутренних ссылок, вес и сжатие ассетов
   AUD-14  браузерный сценарий + JS-тяжёлый адрес (первый прогон уже сделан)
 
 Полные формулировки с доказательствами — «Что доделать.txt» в корне.
@@ -193,7 +197,7 @@ AUD-13 (.gitattributes).
   AGENTS.md                  правила агента: границы, бюджет, гейты, конец этапа
   project-context.md         стек, решения с датами, структура, интеграции
   CHANGELOG.md               версии инструмента
-  Что доделать.txt           открытые пункты AUD-04..AUD-14 (закрытые — в журнале)
+  Что доделать.txt           открытые пункты AUD-04..AUD-17 (закрытые — в журнале)
   Что сделано.txt            журнал этапов, сверху свежее
   docs/README.md             карта документации и правила гигиены
   docs/architecture.md       стадии, контракт JSON, отказы, идемпотентность

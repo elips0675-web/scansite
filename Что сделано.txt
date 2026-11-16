@@ -6,6 +6,26 @@
 
 ---
 
+(Stage 3.1 — 16.11.2026) — **Бэклог пополнен: AUD-15, AUD-16, AUD-17.**
+
+- AUD-15: находки из уже скачанного — `cache-control`, `vary` при сжатии,
+  `server`/`x-powered-by` с версией, mixed content, `alt`/`label`, OG/Twitter,
+  favicon, `noindex`, длина `title`/`description`. Основание:
+  `scripts/audit-collect.mjs:46-60` собирает заголовки, но не оценивает их;
+  `parseHtml` (`:91-115`) не читает `alt`, `label`, OG и favicon.
+- AUD-16: DNS и почта локально через `node:dns/promises` — A/AAAA/MX/NS/TXT,
+  SPF, DMARC, IPv6, плюс `alpnProtocol` (h2). Основание: импорты только
+  `node:fs`/`node:path`/`node:tls` (`:1-3`), TLS-объект (`:67-80`) не отдаёт ALPN.
+  DNSSEC остаётся `unknown`: Node не отдаёт AD-bit.
+- AUD-17: проба 404, 20 внутренних ссылок, вес и сжатие ассетов. Основание:
+  `images` — только список `src` (`:110`), за ресурсами коллектор не ходит.
+- AUD-04 получил порядок: «Выводы» пишутся после AUD-15…AUD-17 и AUD-05,
+  иначе модели нечего формулировать, кроме «14 ok и один fail».
+- Срез `test/Для анализа.txt` §7 обновлён; что **не** проверено: ни один из трёх
+  пунктов не реализован, оценки времени в них не стоят намеренно.
+
+---
+
 (Stage 3 — 16.11.2026) — **Сбор, отчёт и первый живой прогон: AUD-01, AUD-02, AUD-03, AUD-11, AUD-12, AUD-13 закрыты.**
 
 - `scripts/audit-collect.mjs` — все проверки `docs/checks.md` §1: статус и
