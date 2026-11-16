@@ -106,16 +106,6 @@
 Приёмка: в логе видны паузы и `User-Agent`; искусственный сайт с 429 даёт
 `unknown` и не повторяет запрос.
 
-### AUD-08. `git init` и первый коммит
-
-Каталог не репозиторий — проверено 16.11.2026 командой
-`git -C "D:\OpenCode сканер сайтов" rev-parse --is-inside-work-tree`
-(fatal: not a git repository). Нужно: `git init`, `git add` поимённо по
-`.gitignore`, первый коммит документации.
-
-Приёмка: `git status` чистый; `.gitignore` покрывает `node_modules/`, `.env`,
-`audit_data.json`, `audit-report.html`, `reports/`; входной HTML закоммичен.
-
 ### AUD-09. Команда `/audit` для OpenCode
 
 Источник предлагает `commands/audit.md` (`Аудит…Qwen.html:137`). В каталоге
@@ -161,3 +151,13 @@
 
 Приёмка: все команды из README выполнены вручную и работают с первого запуска;
 ни одной команды «на будущее».
+
+### AUD-13. Нормализовать переводы строк (`.gitattributes`)
+
+проверено 16.11.2026: `git add` предупредил «LF will be replaced by CRLF the
+next time Git touches it» для 23 файлов — в рабочей копии LF, при checkout
+станет CRLF. Для документации и `.mjs` это шум в диффах. Нужно: `.gitattributes`
+с `* text=auto eol=lf` и `*.bat text eol=crlf`, если появятся батники.
+
+Приёмка: повторный `git add` без предупреждений; `git diff` после
+переустановки на чистом клоне пуст; гейт `check:docs` зелёный.

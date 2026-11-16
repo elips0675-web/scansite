@@ -6,6 +6,32 @@
 
 ---
 
+(Stage 1 — 16.11.2026) — **Репозиторий опубликован, AUD-08 закрыт.**
+
+- `git init -b main`, локальная подпись `elips0675-web
+  <elips0675-web@users.noreply.github.com>` (как в `D:\October CMS`),
+  `git add` поимённо по `.gitignore`, первый коммит `c92795a` — 22 файла,
+  1 835 строк.
+- Удалённый репозиторий: https://github.com/elips0675-web/scansite
+  (далее `origin`, ветка `main`, upstream настроен).
+- Push по сохранённым учётным данным Git Credential Manager (`gh` CLI на
+  машине нет, SSH-ключей нет — оба существующих репозитория владельца тоже
+  на HTTPS).
+- Проверено: `git ls-remote --heads origin` → `refs/heads/main` = `c92795a`;
+  `git status --short` пуст; `node tools/check-docs.mjs` → 23 проверки,
+  0 проблем; `git log --oneline -1` без BOM в сообщении.
+- Документация приведена в соответствие: в `README.md` §«Этапы» строка про
+  репозиторий, в `AGENTS.md` §6 пункты 4–5 без «после AUD-08», факт про git
+  обновлён в `test/Для анализа.txt` §2 и `docs/installation.md` §2–3.
+
+**Что не проверено:**
+
+- CI и защита ветки не настроены; история — один коммит.
+- `.gitattributes` нет: Git предупреждает о LF→CRLF при checkout (AUD-13).
+- Клонирование на чистую машину и `npm.cmd run check:docs` там не выполнялись.
+
+---
+
 (Stage 0 — 16.11.2026) — **Документация и гейт. Кода нет.**
 
 - Создан канонический набор по схеме `D:\October CMS`: `README.md`,

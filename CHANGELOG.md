@@ -15,6 +15,8 @@ Changelog, версии — SemVer.
 - Журнал `Что сделано.txt` и бэклог `Что доделать.txt` с ID `AUD-NN`.
 - Срез для внешнего аудита: `test/Для анализа.txt` и `test/README.md`.
 - Гейт документации `npm.cmd run check:docs` (`tools/check-docs.mjs`).
+- Публикация репозитория: https://github.com/elips0675-web/scansite
+  (коммит `c92795a`, ветка `main`).
 
 ### Not done
 
