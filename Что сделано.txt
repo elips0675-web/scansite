@@ -6,6 +6,45 @@
 
 ---
 
+(Stage 5 — 16.11.2026) — **«Выводы» локальной моделью: AUD-04 закрыт.**
+
+- `scripts/audit-summary.mjs` — новый скрипт: читает `audit-report/audit_data.json`,
+  собирает промт только из не-`ok` находок с `id` (`:43-69`), проверяет длину
+  промта (`:71-74`), `--dry-run` печатает промт и ничего не отправляет
+  (`:76-80`), зовёт `POST /api/generate` Ollama с `temperature 0.2`, `num_ctx 4096`,
+  `num_predict 700` (`:104-131`), чистит markdown и HTML (`:82-90`), режет по
+  300 словам с флагом `truncated` (`:92-99`) и **не пишет файл, если модель не
+  сослалась ни на один `id`** (`:101`, `:142-145`); результат —
+  `audit-report/conclusions.json` с `meta.model, words, truncated, ids_cited,
+  ids[], prompt_chars` (`:150-166`).
+- `scripts/audit-render.mjs`: `--conclusions` по умолчанию
+  `audit-report/conclusions.json` (`:27-37`), абзацы через `esc()` (`:177-183`),
+  раздел 7 подставляет текст и подпись «модель, N слов, M ссылок» (`:185-189`);
+  битый JSON — предупреждение и заглушка, рендер не падает.
+- Проверено (`node scripts/audit-summary.mjs --dry-run` на данных
+  `ducasolutions.com`): промт 2283 символа, отправки нет; на недоступной Ollama,
+  неизвестной модели (404), пустом ответе и ответе без ссылок на `id` — exit 1,
+  `conclusions.json` не создаётся; обрезка по 300 словам проверена подстановкой
+  длинного текста.
+- Документация: `README.md` (шаг 3 и состав `audit-report/`), `AGENTS.md` §5
+  (гейты `audit-summary.mjs`), `docs/architecture.md` §1,
+  `docs/report-format.md` §1, `docs/local-model.md` §7 (эта машина без карты,
+  CPU-модель), `docs/qa-checklist.md` (этап 3), `project-context.md` §4,
+  `CHANGELOG.md` 0.4.0, `package.json` 0.4.0, `.opencode/commands/audit.md`
+  (необязательный шаг 3).
+- Удалены остатки недокачанной `qwen2.5:3b` (17 файлов `*-partial*`, 914 МБ):
+  `ollama list` пуст, `ollama serve` жив.
+
+**Что не проверено:**
+
+- Живой прогон модели: на этой машине нет карты (`nvidia-smi` отсутствует), а
+  `qwen2.5:3b` не докачана и удалена; `conclusions.json` отсутствует, отчёт
+  рендерится с заглушкой «модель не запускалась».
+- Прогон на 3060 (`100% GPU`) — только на машине с картой
+  (`docs/local-model.md` §7).
+
+---
+
 (Stage 4 — 16.11.2026) — **DNS, почта и ALPN в сборе; команда `/audit`: AUD-09 закрыт, AUD-16 сужен до проверки ветвей.**
 
 - `scripts/audit-collect.mjs`: импорт `node:dns/promises` (`:3`), функция

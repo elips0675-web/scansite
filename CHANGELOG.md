@@ -3,6 +3,27 @@
 Версии **инструмента**, не сайтов, которые он проверяет. Формат — Keep a
 Changelog, версии — SemVer.
 
+## [0.4.0] — 16.11.2026
+
+### Added
+
+- `scripts/audit-summary.mjs` — раздел «Выводы» локальной моделью (Ollama):
+  `audit_data.json` → компактный промт (только не-`ok` находки с `id`) →
+  `audit-report/conclusions.json` с метаданными `model, words, truncated,
+  ids_cited, ids[], prompt_chars`. Обрезка по 300 словам, отказ записывать
+  файл без ссылок на `id`; `--model`, `--host`, `--data`, `--out`, `--dry-run`
+  (AUD-04).
+- Подстановка выводов в раздел 7: абзацы через `esc()`, подпись «модель,
+  N слов, M ссылок»; битый `conclusions.json` не роняет рендер.
+- `npm run summary` и версия инструмента 0.3.0 → 0.4.0.
+
+### Changed
+
+- `docs/architecture.md` §1 — стадия 4 описана как реализованная;
+  `docs/report-format.md` §1 — раздел 3 дополнен ALPN и подразделом DNS;
+  `docs/local-model.md` §7 — эта машина без карты, CPU-модель;
+  `docs/qa-checklist.md` — этап 3 сверяется по `conclusions.json`.
+
 ## [0.3.0] — 16.11.2026
 
 ### Added

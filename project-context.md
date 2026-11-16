@@ -45,8 +45,8 @@ Python 3.14 на машине есть, но **не используется**: 
 
 ## 4. Структура: факт и план
 
-Факт на 16.11.2026 (Stage 4): `docs/` (11 файлов), `test/` (2 файла),
-`tools/` (1 файл), `scripts/` (2 файла), `templates/` (1 файл),
+Факт на 16.11.2026 (Stage 5): `docs/` (11 файлов), `test/` (2 файла),
+`tools/` (1 файл), `scripts/` (3 файла), `templates/` (1 файл),
 `.opencode/commands/` (1 файл), `README.md`, `AGENTS.md`, `project-context.md`,
 `CHANGELOG.md`, `Что доделать.txt`, `Что сделано.txt`, `package.json`,
 `.gitignore`, `.gitattributes` и один входной HTML.
@@ -58,7 +58,7 @@ sites.json                   вход: список адресов + allowlist  
 scripts/audit-collect.mjs    сбор фактов -> audit_data.json            сделано
 scripts/audit-external.mjs   PageSpeed / Observatory / SSL Labs        AUD-06
 scripts/audit-render.mjs     audit_data.json + шаблон -> HTML          сделано
-scripts/audit-summary.mjs    раздел «Выводы» через модель              AUD-04
+scripts/audit-summary.mjs    audit_data.json -> conclusions.json (Ollama)  сделано
 templates/audit-report.html  шаблон с плейсхолдерами                   сделано
 tools/check-docs.mjs         гейт документации                         сделано
 .opencode/commands/audit.md  команда /audit: сбор + рендер              сделано

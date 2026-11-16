@@ -96,8 +96,10 @@
 node tools/check-docs.mjs                  # карта, бэклог, заглушки, .gitignore
 node --check scripts/audit-collect.mjs     # синтаксис сбора
 node --check scripts/audit-render.mjs      # синтаксис рендера
+node --check scripts/audit-summary.mjs     # синтаксис выводов модели
 node scripts/audit-collect.mjs --url <адрес>   # живой прогон → audit-report/audit_data.json
 node scripts/audit-render.mjs              # → audit-report/audit-report.html
+node scripts/audit-summary.mjs --dry-run   # промт без обращения к Ollama
 ```
 
 Рендер сам возвращает exit 1, если в HTML остался `{{`, найден внешний ресурс
@@ -141,7 +143,7 @@ node scripts/audit-render.mjs              # → audit-report/audit-report.html
 | сбор данных | `scripts/audit-collect.mjs` | AUD-01 | сделано |
 | сигнатуры технологий | `scripts/audit-collect.mjs` (`techOf`) | AUD-02 | сделано |
 | рендер отчёта | `scripts/audit-render.mjs`, `templates/audit-report.html` | AUD-03 | сделано |
-| выводы моделью | `scripts/audit-summary.mjs` | AUD-04 | не начат |
+| выводы моделью | `scripts/audit-summary.mjs` | AUD-04 | сделано (Ollama `qwen2.5:3b`) |
 | список адресов | `sites.json` | AUD-05 | `--sites` читается, файла и диффа нет |
 | внешние API | `scripts/audit-external.mjs` | AUD-06 | не начат |
 | команда для OpenCode | `.opencode/commands/audit.md` | AUD-09 | сделано |

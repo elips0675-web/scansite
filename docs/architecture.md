@@ -11,10 +11,14 @@
 | 1б | тот же адрес | браузер сессии (`browser.*`), вручную | `audit-report/browser_data.json` | AUD-14 |
 | 2 | `audit_data.json` | `scripts/audit-external.mjs` (если есть ключи) | тот же JSON, блок `external` | AUD-06 |
 | 3 | `audit_data.json` + `templates/audit-report.html` | `scripts/audit-render.mjs` | `audit-report/audit-report.html` | AUD-03 |
-| 4 | `audit_data.json` | `scripts/audit-summary.mjs` (модель) | раздел «Выводы» внутри отчёта | AUD-04 |
+| 4 | `audit_data.json` | `scripts/audit-summary.mjs` (Ollama) | `audit-report/conclusions.json` → раздел «Выводы» | AUD-04 |
 
 Стадии 1–3 работают без интернета модели и без Ollama. Стадия 4 — опциональная:
-без неё отчёт валиден, в разделе «Выводы» стоит строка «модель не запускалась».
+`node scripts/audit-summary.mjs` пишет `audit-report/conclusions.json`, рендер
+подставляет его в раздел «Выводы» и указывает модель, число слов и число ссылок
+на `id`; без файла в разделе стоит строка «модель не запускалась».
+Скрипт отказывается писать файл, если модель не сослалась ни на один `id`
+находки, и обрезает текст по 300 словам, помечая `truncated`.
 
 ## 1б. Браузерный прогон (опционально, вне CI)
 

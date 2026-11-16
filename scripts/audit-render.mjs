@@ -24,6 +24,18 @@ if (!site) {
 
 const browser = browserPath ? JSON.parse(readFileSync(browserPath, 'utf8')) : null;
 
+const conclusionsPath = flag('conclusions', `${OUT_DIR}/conclusions.json`);
+const modelText = (() => {
+  if (!existsSync(conclusionsPath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(conclusionsPath, 'utf8'));
+    return parsed && parsed.text ? parsed : null;
+  } catch {
+    console.error(`файл выводов ${conclusionsPath} не разобран — раздел останется с заглушкой`);
+    return null;
+  }
+})();
+
 const esc = (value) =>
   String(value ?? '').replace(
     /[&<>"']/g,
@@ -162,9 +174,22 @@ const seoBlock = `<table>
     </tbody>
   </table>`;
 
-const conclusions = browser
-  ? `<p class="note">Модель не запускалась: раздел заполняется локальной моделью (≤ 300 слов) или вручную по <code>id</code> находок. Факты для текста — выше, в разделах 1–6.</p>`
-  : `<p class="note">Модель не запускалась. Каждая рекомендация в этом разделе обязана ссылаться на <code>id</code> находки из разделов 1–6.</p>`;
+const paragraphs = (value) =>
+  String(value)
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => `<p>${esc(part).replace(/\n/g, '<br>')}</p>`)
+    .join('\n    ');
+
+const conclusions = modelText
+  ? `<div class="model-text">
+    ${paragraphs(modelText.text)}
+  </div>
+  <p class="note">Текст модели <code>${esc(modelText.meta?.model || '—')}</code>: ${esc(modelText.meta?.words ?? '—')} слов при лимите 300, ссылок на <code>id</code> — ${esc(modelText.meta?.ids_cited ?? 0)}. Сгенерирован ${esc(String(modelText.meta?.generated_at || '').slice(0, 16).replace('T', ' '))}. Числа — из разделов 1–6, а не из текста модели.</p>`
+  : browser
+    ? `<p class="note">Модель не запускалась: раздел заполняется локальной моделью (≤ 300 слов) через <code>node scripts/audit-summary.mjs</code> или вручную по <code>id</code> находок. Факты для текста — выше, в разделах 1–6.</p>`
+    : `<p class="note">Модель не запускалась. Раздел заполняется командой <code>node scripts/audit-summary.mjs</code>; каждая рекомендация обязана ссылаться на <code>id</code> находки из разделов 1–6.</p>`;
 
 const notChecked = `<ul>
     <li>Активные проверки (ZAP, k6, брутфорс путей) — только с письменного разрешения владельца сайта.</li>

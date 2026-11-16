@@ -20,6 +20,7 @@ self-contained HTML-файл с приоритетами «что чинить �
 
 Код есть с 16.11.2026, зависимостей ноль:
   - scripts/audit-collect.mjs — сбор фактов -> audit-report/audit_data.json;
+  - scripts/audit-summary.mjs — «Выводы» локальной моделью -> conclusions.json;
   - templates/audit-report.html + scripts/audit-render.mjs — отчёт из JSON;
   - tools/check-docs.mjs — гейт документации;
   - .opencode/commands/audit.md — команда /audit (сбор + рендер, без активного
@@ -82,7 +83,7 @@ curl падают.
   scripts/audit-collect.mjs  сбор -> audit-report/audit_data.json    сделано
   scripts/audit-external.mjs PageSpeed / Observatory / SSL Labs      (AUD-06: не начат)
   scripts/audit-render.mjs   JSON + шаблон -> audit-report/audit-report.html  сделано
-  scripts/audit-summary.mjs  раздел «Выводы» через модель            (AUD-04: не начат)
+  scripts/audit-summary.mjs  JSON -> conclusions.json (Ollama)          сделано
   templates/audit-report.html шаблон с плейсхолдерами {{...}}        сделано
   tools/check-docs.mjs       гейт документации                       сделано
   .opencode/commands/audit.md команда /audit: сбор + рендер          сделано
@@ -128,6 +129,12 @@ https://nonexistent-domain-abc123xyz.invalid: error "dns", status null, exit 0.
 Браузерные данные лежат отдельно (audit-report/browser_data.json) и в audit_data.json
 не пишутся: рендер принимает их ключом --browser (AUD-14).
 
+«Выводы» модели лежат отдельным файлом audit-report/conclusions.json
+({meta:{model, generated_at, words, truncated, ids_cited, ids[], prompt_chars},
+text}). Скрипт audit-summary.mjs отказывается писать файл, если модель не
+сослалась ни на один id находки, и обрезает текст по 300 словам с флагом
+truncated. Рендер подставляет текст и подпись «модель, N слов, M ссылок».
+
 ================================================================================
 5. ГЕЙТЫ
 ================================================================================
@@ -137,6 +144,8 @@ https://nonexistent-domain-abc123xyz.invalid: error "dns", status null, exit 0.
   node tools/check-docs.mjs      документация: 23 проверки, exit 0
   node --check scripts/audit-collect.mjs
   node --check scripts/audit-render.mjs
+  node --check scripts/audit-summary.mjs
+  node scripts/audit-summary.mjs --dry-run   промт без запроса к Ollama
   рендер сам падает (exit 1): остались {{...}}, найден внешний ресурс
   (script/link/src/@import/url(http)), файл больше 150 КБ
 
@@ -177,7 +186,6 @@ https://nonexistent-domain-abc123xyz.invalid: error "dns", status null, exit 0.
 ================================================================================
 
 P0
-  AUD-04  раздел «Выводы» моделью, ≤ 300 слов
   AUD-05  sites.json + сравнение двух прогонов
 
 P1
@@ -195,8 +203,8 @@ P2
 
 Полные формулировки с доказательствами — «Что доделать.txt» в корне.
 Закрыты 16.11.2026: AUD-01 (сбор), AUD-02 (сигнатуры), AUD-03 (рендер),
-AUD-08 (репозиторий), AUD-09 (команда /audit), AUD-11 (этот срез),
-AUD-12 (команды в README), AUD-13 (.gitattributes).
+AUD-04 («Выводы» моделью), AUD-08 (репозиторий), AUD-09 (команда /audit),
+AUD-11 (этот срез), AUD-12 (команды в README), AUD-13 (.gitattributes).
 
 ================================================================================
 8. КАРТА КАТАЛОГА
@@ -206,7 +214,7 @@ AUD-12 (команды в README), AUD-13 (.gitattributes).
   AGENTS.md                  правила агента: границы, бюджет, гейты, конец этапа
   project-context.md         стек, решения с датами, структура, интеграции
   CHANGELOG.md               версии инструмента
-  Что доделать.txt           открытые пункты AUD-04..AUD-17 (закрытые — в журнале)
+  Что доделать.txt           открытые пункты AUD-05..AUD-17 (закрытые — в журнале)
   Что сделано.txt            журнал этапов, сверху свежее
   docs/README.md             карта документации и правила гигиены
   docs/architecture.md       стадии, контракт JSON, отказы, идемпотентность
@@ -223,10 +231,12 @@ AUD-12 (команды в README), AUD-13 (.gitattributes).
   tools/check-docs.mjs       гейт документации
   scripts/audit-collect.mjs  сбор фактов (fetch + node:tls + node:dns), ноль зависимостей
   scripts/audit-render.mjs   рендер отчёта, проверки на {{...}} и внешние ресурсы
+  scripts/audit-summary.mjs  «Выводы» через Ollama -> conclusions.json (≤ 300 слов)
   templates/audit-report.html шаблон отчёта с плейсхолдерами {{...}}
   .opencode/commands/audit.md команда /audit: два шага, запрет активных проверок
   audit-report/              артефакты прогона: audit_data.json,
-                             browser_data.json, audit-report.html (в git не идут)
+                             browser_data.json, conclusions.json,
+                             audit-report.html (в git не идут)
   .gitattributes             * text=auto eol=lf, бинарные типы
   package.json               npm.cmd run check:docs; npm run audit / report
   Аудит сайтов через OpenCode Генерация HTML-отчётов Qwen.html

@@ -8,31 +8,18 @@
 > (`проверено …`) не принимается. Закрытый пункт удаляется отсюда целиком и
 > попадает одной записью в `Что сделано.txt`.
 >
-> **Состояние проверки.** Stage 4 (16.11.2026): код есть — `scripts/audit-collect.mjs`
-> (включая DNS, SPF/DMARC и ALPN), `scripts/audit-render.mjs`, шаблон
-> `templates/audit-report.html`, команда `/audit`. Гейт `node tools/check-docs.mjs`
-> — exit 0. Живой прогон `https://elvstudio.vercel.app/kit/`: 17 находок
-> (15 `ok`, 1 `fail` — нет CSP, 1 `unknown` — DNS недоступен на машине
-> разработки), ALPN `h2`, отчёт 12 КБ, ноль внешних запросов.
+> **Состояние проверки.** Stage 5 (16.11.2026): код есть — `scripts/audit-collect.mjs`
+> (включая DNS, SPF/DMARC и ALPN), `scripts/audit-render.mjs`,
+> `scripts/audit-summary.mjs` (Ollama), шаблон `templates/audit-report.html`,
+> команда `/audit`. Гейт `node tools/check-docs.mjs` — exit 0.
+> Живые прогоны: `https://elvstudio.vercel.app/kit/` — 17 находок (15 `ok`,
+> 1 `fail` — нет CSP, 1 `unknown` — DNS); `https://www.ducasolutions.com/` —
+> 19 находок (6 `ok`, 9 `warn`, 3 `fail`, 1 `unknown`). ALPN `h2` на обоих.
+> Отчёт 12 КБ, ноль внешних запросов.
 
 ---
 
 ## P0 — без этого инструмента нет
-
-### AUD-04. Раздел «Выводы» моделью, ≤ 300 слов
-
-Источник прямо предупреждает: не просить модель «проверить всё сразу и написать
-отчёт» (`Аудит…Qwen.html:258`). Нужно: `scripts/audit-summary.mjs` читает
-`audit_data.json` и отдаёт текст раздела «Выводы» — три пункта по приоритету,
-каждый со ссылкой на `id` находки.
-
-Приёмка: без модели отчёт валиден и содержит строку «модель не запускалась»
-(сейчас так и есть — `scripts/audit-render.mjs`, блок `conclusions`); с моделью —
-не больше 300 слов и ни одного числа, которого нет в JSON; прогон на 3060
-показывает `100% GPU` в `ollama ps`.
-
-Порядок: делать после AUD-15…AUD-17 и AUD-05. Иначе модель пересказывает
-«14 ok и один fail» — формулировать нечего.
 
 ### AUD-05. `sites.json` и сравнение прогонов
 

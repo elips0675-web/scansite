@@ -1,12 +1,13 @@
 {
   "name": "site-audit-scanner",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Пассивный аудит сайтов и генерация HTML-отчёта",
   "scripts": {
     "check:docs": "node tools/check-docs.mjs",
     "audit": "node scripts/audit-collect.mjs",
-    "report": "node scripts/audit-render.mjs"
+    "report": "node scripts/audit-render.mjs",
+    "summary": "node scripts/audit-summary.mjs"
   }
 }
