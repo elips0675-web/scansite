@@ -24,6 +24,21 @@ if (!site) {
 
 const browser = browserPath ? JSON.parse(readFileSync(browserPath, 'utf8')) : null;
 
+const siteUrl = site.final_url || site.url;
+const hostOf = (value) => {
+  try {
+    return new URL(value).host.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+};
+const browserHost = browser ? hostOf(browser.url || browser.meta?.url) : null;
+const browserMatches = Boolean(browserHost && browserHost === hostOf(siteUrl));
+const browserForeign = Boolean(browser && browserHost && !browserMatches);
+if (browserForeign) {
+  console.error(`browser_data.json относится к ${browser.url}, а прогон — по ${siteUrl}: блок пропущен`);
+}
+
 const psiPath = flag('psi', `${OUT_DIR}/pagespeed.json`);
 const psi = (() => {
   if (!existsSync(psiPath)) return null;
@@ -150,12 +165,15 @@ const speedBlock = `<table>    <tbody>
     </tbody>
   </table>`;
 
-const browserBlock = browser
+const pct = (value) => (typeof value !== 'number' ? null : value <= 1 ? Math.round(value * 100) : Math.round(value));
+const lhLevel = (value) => (value === null ? 'unknown' : value >= 90 ? 'ok' : value >= 50 ? 'warn' : 'fail');
+
+const browserBlock = browserMatches
   ? `<table>
     <tbody>
-      <tr><th>Lighthouse: accessibility</th>${num(browser.lighthouse?.accessibility)}<td>${badge(browser.lighthouse?.accessibility >= 90 ? 'ok' : browser.lighthouse?.accessibility >= 70 ? 'warn' : 'fail')}</td></tr>
-      <tr><th>Lighthouse: best practices</th>${num(browser.lighthouse?.best_practices)}<td></td></tr>
-      <tr><th>Lighthouse: SEO</th>${num(browser.lighthouse?.seo)}<td></td></tr>
+      <tr><th>Lighthouse: accessibility</th>${num(pct(browser.lighthouse?.accessibility))}<td>${badge(lhLevel(pct(browser.lighthouse?.accessibility)))}</td></tr>
+      <tr><th>Lighthouse: best practices</th>${num(pct(browser.lighthouse?.best_practices))}<td>${badge(lhLevel(pct(browser.lighthouse?.best_practices)))}</td></tr>
+      <tr><th>Lighthouse: SEO</th>${num(pct(browser.lighthouse?.seo))}<td>${badge(lhLevel(pct(browser.lighthouse?.seo)))}</td></tr>
       <tr><th>Запросов в сети браузера</th>${num(browser.network?.requests)}<td></td></tr>
       <tr><th>Передано по сети</th>${num(browser.network?.transfer_bytes ? Math.round(browser.network.transfer_bytes / 1024) : null, ' КБ')}<td></td></tr>
       <tr><th>Ошибки JS / console</th>${num(browser.console?.errors)}<td></td></tr>
@@ -164,8 +182,10 @@ const browserBlock = browser
       <tr><th>Длительность записи трейса</th>${num(browser.trace?.duration_ms ? Math.round(browser.trace.duration_ms) : null, ' мс')}<td></td></tr>
     </tbody>
   </table>
-  <p class="note">Прогон выполнен в браузере сессии OpenCode — <strong>вне CI</strong>, вручную. Эмуляции устройства и сети нет: оценки Lighthouse нельзя сравнивать с PageSpeed Insights, только прогон с прогоном. Категория Performance в Lighthouse недоступна; время исполнения берётся из трейса.</p>`
-  : '<p class="note">Браузерный прогон не выполнялся. Стадия опциональна, в CI не заходит (AUD-14): Lighthouse, трейс и сеть собираются вручную в живой сессии.</p>';
+  <p class="note">Прогон выполнен в браузере сессии OpenCode — <strong>вне CI</strong>, вручную${browser.collected_at ? `, снят ${esc(String(browser.collected_at).slice(0, 16).replace('T', ' '))}` : ''}. Эмуляции устройства и сети нет: оценки Lighthouse нельзя сравнивать с PageSpeed Insights, только прогон с прогоном. Категория Performance в Lighthouse недоступна; время исполнения берётся из трейса.</p>`
+  : browserForeign
+    ? `<p class="note">Файл <code>browser_data.json</code> относится к <span class="url">${esc(browser.url)}</span>, а прогон — по <span class="url">${esc(siteUrl)}</span>. Блок пропущен: чужие числа в отчёте хуже пустого места. Удалите файл или соберите прогон заново по этому адресу.</p>`
+    : '<p class="note">Браузерный прогон не выполнялся. Стадия опциональна, в CI не заходит (AUD-14): Lighthouse, трейс и сеть собираются вручную в живой сессии.</p>';
 
 const psiScore = (value) =>
   typeof value !== 'number' ? 'unknown' : value >= 90 ? 'ok' : value >= 50 ? 'warn' : 'fail';

@@ -73,7 +73,8 @@ DNS-строки добавлены 16.11.2026 и проверены тольк�
 
 | Проверка | Инструмент | Поле в JSON | Порог | Основание |
 |---|---|---|---|---|
-| Lighthouse: accessibility, SEO, best practices | `browser.lighthouse` | `external.browser.lighthouse` | accessibility < 90 → `warn`, < 70 → `fail` | `:200-202` |
+| Lighthouse: accessibility, SEO, best practices | `browser.lighthouse` | `external.browser.lighthouse` | 0–1 нормализуются в проценты: < 90 → `warn`, < 50 → `fail` | `:200-202` |
+| Совпадение адреса браузерного прогона | `browser_data.json` (`url`) ↔ `audit_data.json` (`final_url`) | — | хост не совпал → блок пропускается с явной пометкой, а не подставляется молча | нет в источнике |
 | Долгие задачи и раскладка времени | `browser.trace.start/stop/analyze` | `external.browser.trace` | long task > 200 мс → `warn` | `:200-202` |
 | Сеть: запросы, сторонние хосты, вес | `browser.network.list` | `assets`, `external.browser.network` | > 50 запросов → `warn` | `:232-234` |
 | Ошибки JS и console | `browser.console` | `external.browser.console` | любая ошибка → `warn` | нет в источнике |
