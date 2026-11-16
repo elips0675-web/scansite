@@ -24,6 +24,18 @@ if (!site) {
 
 const browser = browserPath ? JSON.parse(readFileSync(browserPath, 'utf8')) : null;
 
+const psiPath = flag('psi', `${OUT_DIR}/pagespeed.json`);
+const psi = (() => {
+  if (!existsSync(psiPath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(psiPath, 'utf8'));
+    return parsed && parsed.scores ? parsed : null;
+  } catch {
+    console.error(`файл ${psiPath} не разобран — блок PageSpeed пропущен`);
+    return null;
+  }
+})();
+
 const conclusionsPath = flag('conclusions', `${OUT_DIR}/conclusions.json`);
 const modelText = (() => {
   if (!existsSync(conclusionsPath)) return null;
@@ -155,6 +167,43 @@ const browserBlock = browser
   <p class="note">Прогон выполнен в браузере сессии OpenCode — <strong>вне CI</strong>, вручную. Эмуляции устройства и сети нет: оценки Lighthouse нельзя сравнивать с PageSpeed Insights, только прогон с прогоном. Категория Performance в Lighthouse недоступна; время исполнения берётся из трейса.</p>`
   : '<p class="note">Браузерный прогон не выполнялся. Стадия опциональна, в CI не заходит (AUD-14): Lighthouse, трейс и сеть собираются вручную в живой сессии.</p>';
 
+const psiScore = (value) =>
+  typeof value !== 'number' ? 'unknown' : value >= 90 ? 'ok' : value >= 50 ? 'warn' : 'fail';
+const psiList = (title, items) => {
+  const list = (items || []).map((item) => (typeof item === 'string' ? { title: item } : item));
+  if (!list.length) return '';
+  const rows = list
+    .map((item) => `<li>${esc(item.title)}${item.saving ? ` — <code>${esc(item.saving)}</code>` : ''}</li>`)
+    .join('');
+  return `<p class="note">${esc(title)}</p><ul>${rows}</ul>`;
+};
+const psiSection = psi
+  ? `<p class="note"><strong>PageSpeed Insights — внешний отчёт, снят вручную</strong></p>
+  <table>
+    <tbody>
+      <tr><th>Производительность</th>${num(psi.scores.performance)}<td>${badge(psiScore(psi.scores.performance))}</td></tr>
+      <tr><th>Специальные возможности</th>${num(psi.scores.accessibility)}<td>${badge(psiScore(psi.scores.accessibility))}</td></tr>
+      <tr><th>Рекомендации</th>${num(psi.scores.best_practices)}<td>${badge(psiScore(psi.scores.best_practices))}</td></tr>
+      <tr><th>Поисковая оптимизация</th>${num(psi.scores.seo)}<td>${badge(psiScore(psi.scores.seo))}</td></tr>
+    </tbody>
+  </table>
+  <table>
+    <tbody>
+      <tr><th>FCP</th>${num(psi.metrics?.fcp_ms ? (psi.metrics.fcp_ms / 1000).toFixed(1) : null, ' с')}<td></td></tr>
+      <tr><th>LCP</th>${num(psi.metrics?.lcp_ms ? (psi.metrics.lcp_ms / 1000).toFixed(1) : null, ' с')}<td></td></tr>
+      <tr><th>TBT</th>${num(psi.metrics?.tbt_ms, ' мс')}<td></td></tr>
+      <tr><th>CLS</th>${num(psi.metrics?.cls)}<td></td></tr>
+      <tr><th>Speed Index</th>${num(psi.metrics?.si_ms ? (psi.metrics.si_ms / 1000).toFixed(1) : null, ' с')}<td></td></tr>
+    </tbody>
+  </table>
+  ${psiList('Что делать по данным Google: возможности', psi.opportunities)}
+  ${psiList('Диагностика Google', psi.diagnostics)}
+  ${psiList('Рекомендации (best practices): что нашёл Google', psi.best_practices)}
+  ${psiList('Специальные возможности: что нашёл Google', psi.accessibility)}
+  ${psiList('SEO: что нашёл Google', psi.seo)}
+  <p class="note">Источник: ${cell(psi.meta?.source_url)}. Снято вручную ${esc(psi.meta?.captured_at || '—')}; устройство: ${esc(psi.meta?.device || '—')}, Lighthouse ${esc(psi.meta?.lighthouse || '—')}. Это <strong>цитата</strong> отчёта Google, а не наше измерение: числа получены с эмуляцией устройства и медленной сети и напрямую не сравнимы с разделом 4. Балл 100 не гарантируется: часть аудитов Lighthouse проходит только вручную, а оценка зависит от эмуляции.</p>`
+  : '';
+
 const techList = (site.tech || []).length ? (site.tech || []).map((t) => `<code>${esc(t)}</code>`).join(', ') : '—';
 const techBlock = `<p>Сигнатуры: ${techList}</p>
   <table>
@@ -243,7 +292,7 @@ const values = {
   tls_block: tlsBlock,
   dns_block: dnsBlock,
   speed_block: speedBlock,
-  browser_block: browserBlock,
+  browser_block: browserBlock + psiSection,
   tech_block: techBlock,
   seo_block: seoBlock,
   conclusions,

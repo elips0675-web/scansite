@@ -9,6 +9,7 @@
 |---|---|---|---|---|
 | 1 | `sites.json` | `scripts/audit-collect.mjs` | `audit-report/audit_data.json` | AUD-01, AUD-02 |
 | 1б | тот же адрес | браузер сессии (`browser.*`), вручную | `audit-report/browser_data.json` | AUD-14 |
+| 1в | отчёт PageSpeed Insights в браузере | человек переносит цифры в файл | `audit-report/pagespeed.json` → подраздел 4.1 | AUD-06 (вручную) |
 | 2 | `audit_data.json` | `scripts/audit-external.mjs` (если есть ключи) | тот же JSON, блок `external` | AUD-06 |
 | 3 | `audit_data.json` + `templates/audit-report.html` | `scripts/audit-render.mjs` | `audit-report/audit-report.html` | AUD-03 |
 | 4 | `audit_data.json` | `scripts/audit-summary.mjs` (Ollama) | `audit-report/conclusions.json` → раздел «Выводы» | AUD-04 |
@@ -40,6 +41,22 @@ OpenCode, поэтому прогон идёт в живой сессии аге
 данные строкой «браузерный прогон, вне CI»: читатель должен видеть, что число
 получено не тем же путём, что остальные. Эмуляции устройства нет, поэтому
 сравнивать с PageSpeed Insights нельзя — только прогон с прогоном.
+
+## 1в. PageSpeed Insights вручную (опционально, вне CI)
+
+API PageSpeed требует ключа и без него отвечает `429` (AUD-06), но сам отчёт
+Google виден в браузере. Поэтому цифры переносятся человеком в
+`audit-report/pagespeed.json`: `meta` (ссылка, дата, устройство, версия
+Lighthouse), `scores` (четыре оценки), `metrics` (FCP, LCP, TBT, CLS, Speed
+Index), `opportunities`, `diagnostics`, `accessibility`, `best_practices`,
+`seo`. Файл опционален: нет его — подраздела нет, рендер не падает. Битый JSON
+даёт предупреждение в stderr и пропуск блока, а не отказ сборки.
+
+Правило разделения: в разделах 1–6 только наши измерения, в подразделе 4.1 —
+только **цитата** Google с датой, устройством и ссылкой. Числа не смешиваются,
+потому что PSI эмулирует Moto G Power и медленную 4G, а наш сбор ходит как
+есть. Балл 100 не обещается: часть аудитов Lighthouse проходится вручную, а
+оценка зависит от эмуляции.
 
 ## 2. Почему именно так
 

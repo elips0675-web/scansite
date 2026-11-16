@@ -2,8 +2,9 @@
 Проект: сканер сайтов (пассивный аудит + HTML-отчёт)
 Каталог: D:\OpenCode сканер сайтов
 Дата среза: 16.11.2026
-Состояние: Stage 6 — сбор (заголовки, TLS, DNS и почта, скорость, SEO и
-доступность), рендер, «Выводы» локальной моделью, команда /audit.
+Состояние: Stage 7 — сбор (заголовки, TLS, DNS и почта, скорость, SEO и
+доступность), рендер, «Выводы» локальной моделью, команда /audit, отчёт
+PageSpeed Insights в HTML как цитата (подраздел 4.1).
 Репозиторий: https://github.com/elips0675-web/scansite (ветка main).
 
 Файл самодостаточен: если модели не нужен конкретный файл, читать другие не
@@ -204,7 +205,8 @@ P0
   AUD-05  sites.json + сравнение двух прогонов
 
 P1
-  AUD-06  внешние API (PageSpeed, Observatory, SSL Labs), ключи из .env
+  AUD-06  внешние API (PageSpeed, Observatory, SSL Labs), ключи из .env;
+          PageSpeed пока переносится вручную в audit-report/pagespeed.json
   AUD-07  вежливость: подтвердить 403/429 и паузы, вывести User-Agent в лог
   AUD-16  подтвердить ветки ok/fail для SPF и DMARC (код и разбор политик
           готовы, здесь UDP 53 закрыт — ECONNREFUSED)
@@ -252,8 +254,8 @@ noindex, длина title/description).
   templates/audit-report.html шаблон отчёта с плейсхолдерами {{...}}
   .opencode/commands/audit.md команда /audit: два шага, запрет активных проверок
   audit-report/              артефакты прогона: audit_data.json,
-                             browser_data.json, conclusions.json,
-                             audit-report.html (в git не идут)
+                             browser_data.json, pagespeed.json,
+                             conclusions.json, audit-report.html (в git не идут)
   .gitattributes             * text=auto eol=lf, бинарные типы
   package.json               npm.cmd run check:docs; npm run audit / report
   Аудит сайтов через OpenCode Генерация HTML-отчётов Qwen.html

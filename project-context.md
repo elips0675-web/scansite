@@ -65,7 +65,7 @@ tools/check-docs.mjs         гейт документации                  
 .opencode/commands/audit.md  команда /audit: сбор + рендер              сделано
 audit-report/                 артефакты прогона (в git не идут):
                              audit_data.json, browser_data.json,
-                             conclusions.json, audit-report.html
+                             pagespeed.json, conclusions.json, audit-report.html
 ```
 
 ## 5. Точки интеграции

@@ -6,6 +6,39 @@
 
 ---
 
+(Stage 7 — 16.11.2026) — **отчёт Google (PageSpeed Insights) входит в HTML как цитата: подраздел 4.1.**
+
+- `scripts/audit-render.mjs:27` — читает `audit-report/pagespeed.json`, если он
+  лежит рядом; файла нет — подраздела нет, битый JSON — предупреждение в stderr
+  и пропуск блока (`:34`). Флаг `--psi <путь>` переопределяет путь.
+- `scripts/audit-render.mjs:180` — блок 4.1: четыре оценки Google
+  (производительность, специальные возможности, рекомендации, SEO), метрики
+  FCP/LCP/TBT/CLS/Speed Index, списки «возможности», «диагностика», best
+  practices, a11y и SEO. Вставляется в `browser_block` (`:295`), шаблон не
+  менялся.
+- Порог цвета бейджа — шкала Google: ≥ 90 → `ok`, ≥ 50 → `warn`, иначе `fail`
+  (`:170-171`). В общие счётчики `ok/warn/fail/unknown` эти числа не попадают.
+- Подпись под блоком (`:203`): ссылка на отчёт, дата снятия, устройство
+  (Moto G Power, 4G с низкой скоростью), версия Lighthouse 13.6.0 и явное
+  «это цитата, а не наше измерение; 100 баллов не гарантируется — часть
+  аудитов Lighthouse проходит вручную, оценка зависит от эмуляции».
+- `audit-report/pagespeed.json` — артефакт прогона (gitignore), схема описана в
+  `docs/architecture.md` §1в.
+- Документация: `docs/architecture.md` §1 (строка 1в) и §1в,
+  `docs/report-format.md:14`, `docs/checks.md:83`, `README.md`,
+  `AGENTS.md` §5 и §9, `Что доделать.txt` (AUD-06 — частично закрыт вручную),
+  `CHANGELOG.md` 0.6.0, версия `0.6.0`.
+- Чем проверено: `node --check scripts/audit-render.mjs` — 0;
+  `node tools/check-docs.mjs` — 0; `node scripts/audit-render.mjs` по
+  `ducasolutions.com` — отчёт 20 КБ, плавающих `{{` нет, в HTML есть блок
+  «PageSpeed Insights» с LCP 12.8 с и 1 950 мс блокирующих запросов.
+- Что **не** проверено: воспроизводимость цифр Google нашим сбором (PSI
+  эмулирует устройство и сеть, API без ключа отвечает 429 — AUD-06 открыт);
+  `best_practices` показаны, но не сведены к нашим находкам; путь к файлу
+  вручную, автоматического скачивания нет.
+
+---
+
 (Stage 6 — 16.11.2026) — **перенос проверок из `D:\nlbopt-main` и `D:\October CMS`: AUD-15 закрыт, AUD-17 сужен до ссылок и веса ассетов.**
 
 - `scripts/mail-policy.mjs` — новый файл, две чистые функции: `spfPolicy`

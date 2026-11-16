@@ -107,7 +107,10 @@ node scripts/audit-summary.mjs --dry-run   # промт без обращени�
 ```
 
 Рендер сам возвращает exit 1, если в HTML остался `{{`, найден внешний ресурс
-или файл больше 150 КБ — это часть гейта, а не пожелание.
+или файл больше 150 КБ — это часть гейта, а не пожелание. Битый
+`audit-report/pagespeed.json` роняет не сборку, а только подраздел 4.1:
+предупреждение в stderr и блок пропускается — цифры Google не должны
+превращаться в наши.
 
 Новая команда дописывается сюда в тот же день, когда появился скрипт, иначе
 гейт существует только в этом файле.
@@ -149,7 +152,7 @@ node scripts/audit-summary.mjs --dry-run   # промт без обращени�
 | рендер отчёта | `scripts/audit-render.mjs`, `templates/audit-report.html` | AUD-03 | сделано |
 | выводы моделью | `scripts/audit-summary.mjs` | AUD-04 | сделано (Ollama `qwen2.5:3b`) |
 | список адресов | `sites.json` | AUD-05 | `--sites` читается, файла и диффа нет |
-| внешние API | `scripts/audit-external.mjs` | AUD-06 | не начат |
+| внешние API | `scripts/audit-external.mjs` | AUD-06 | не начат; PageSpeed переносится вручную в `audit-report/pagespeed.json` |
 | команда для OpenCode | `.opencode/commands/audit.md` | AUD-09 | сделано |
 | DNS, почта, ALPN | `scripts/audit-collect.mjs` (`readDns`, `tls.alpn`) | AUD-16 | код есть, ветви `ok`/`fail` не подтверждены |
 | политики SPF/DMARC | `scripts/mail-policy.mjs` | AUD-16 | сделано, 11 случаев без сети |

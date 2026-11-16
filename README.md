@@ -43,8 +43,9 @@
 | 2. Отчёт из шаблона (AUD-03) | **сделан 16.11.2026**: `templates/audit-report.html` + `scripts/audit-render.mjs` |
 | 2б. Сравнение прогонов (AUD-05) | не начат: нужен `sites.json` и диф двух JSON |
 | 3. Выводы моделью (AUD-04) | **сделан 16.11.2026**: `scripts/audit-summary.mjs` → `audit-report/conclusions.json` → раздел 7 |
-| 4. Внешние API (AUD-06) | не начат |
+| 4. Внешние API (AUD-06) | не начат: без ключа PageSpeed API отвечает `429`; отчёт Google пока переносится вручную в `audit-report/pagespeed.json` → подраздел 4.1 |
 | 5. Перенос проверок (AUD-15, AUD-17 частично) | **сделан 16.11.2026**: CAA, MTA-STS, политики SPF/DMARC, мягкая 404, HTTP→HTTPS, статические HTML-проверки, `requests` |
+| 5б. PageSpeed вручную | **сделан 16.11.2026**: `audit-report/pagespeed.json` (оценки Google, метрики, «что делать») → подраздел 4.1, помечен как цитата |
 
 ## Быстрый старт
 
@@ -59,7 +60,8 @@ npm.cmd run check:docs
 node scripts/audit-collect.mjs --url https://example.com/
 
 # 2. Отчёт → audit-report/audit-report.html
-#    браузерный блок подхватится сам, если рядом лежит audit-report/browser_data.json
+#    браузерный блок подхватится сам, если рядом лежит audit-report/browser_data.json,
+#    а подраздел 4.1 — если рядом лежит audit-report/pagespeed.json (цифры из отчёта Google)
 node scripts/audit-render.mjs
 
 # 3. Необязательно: «Выводы» локальной моделью (Ollama) → audit-report/conclusions.json
@@ -69,7 +71,7 @@ node scripts/audit-render.mjs
 ```
 
 `audit-report/` — папка артефактов прогона (`audit_data.json`,
-`browser_data.json`, `conclusions.json`, `audit-report.html`), в git не попадает
+`browser_data.json`, `pagespeed.json`, `conclusions.json`, `audit-report.html`), в git не попадает
 (`.gitignore`).
 Список адресов `--sites sites.json` поддержан коллектором, но сам файл и
 сравнение прогонов — AUD-05.

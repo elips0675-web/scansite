@@ -80,6 +80,7 @@ DNS-строки добавлены 16.11.2026 и проверены тольк�
 | DOM после JS: `title`, `h1`, `canonical`, JSON-LD | `browser.snapshot`, `browser.evaluate` | `content`, `seo` | как в §1 | `:227-229` |
 | Скриншот страницы | `browser.screenshot` | файл рядом с отчётом | — | нет в источнике |
 | JS-профиль, горячие функции | `browser.cpu.start/stop/analyze` | `external.browser.cpu` | — | нет в источнике |
+| PageSpeed Insights (внешний отчёт) | вручную: отчёт в браузере → `audit-report/pagespeed.json` | подраздел 4.1 | цифры Google цитируются как есть, в наши статусы не пересчитываются | нет в источнике |
 
 Ограничения, которые нельзя забывать:
 

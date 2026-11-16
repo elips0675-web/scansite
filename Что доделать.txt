@@ -51,6 +51,12 @@
 Нужно: `scripts/audit-external.mjs`, ключи только из `.env`, `.env.example`
 с именами переменных (`PAGESPEED_API_KEY`, `SSLLABS_EMAIL`).
 
+Частично закрыто вручную (16.11.2026): отчёт PageSpeed переносится в
+`audit-report/pagespeed.json` и рендерится подразделом 4.1
+(`scripts/audit-render.mjs:27`, `scripts/audit-render.mjs:180`). API по-прежнему
+нет, поэтому поле `external.*` остаётся `null`, а цифры Google помечены как
+цитата.
+
 Приёмка: с пустым `.env` — `external.*: null` и статус `unknown`, exit 0;
 с ключом — данные в JSON; в логе не больше одного запроса в секунду.
 
